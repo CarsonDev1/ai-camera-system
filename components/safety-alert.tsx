@@ -1,0 +1,497 @@
+'use client';
+
+import { useState, useEffect } from 'react';
+import { useQuery } from '@tanstack/react-query';
+import { Card, CardContent } from '@/components/ui/card';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import {
+	DropdownMenu,
+	DropdownMenuContent,
+	DropdownMenuItem,
+	DropdownMenuLabel,
+	DropdownMenuSeparator,
+	DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import { Activity, AlertTriangle, Clock, UserCheck, MoreHorizontal } from 'lucide-react';
+import SafetyAlertsService, { SafetyAlert } from '@/services/safety-alert-service';
+
+// Stats Cards Component - Shows safety alerts statistics
+export const SafetyAlertsStats = () => {
+	const { data: allAlerts, isLoading: isLoadingAll } = useQuery({
+		queryKey: ['safetyAlerts'],
+		queryFn: () => SafetyAlertsService.getSafetyAlerts(),
+	});
+
+	const { data: pendingAlerts, isLoading: isLoadingPending } = useQuery({
+		queryKey: ['pendingSafetyAlerts'],
+		queryFn: () => SafetyAlertsService.getPendingSafetyAlerts(),
+		enabled: !!allAlerts,
+	});
+
+	const { data: resolvedAlerts, isLoading: isLoadingResolved } = useQuery({
+		queryKey: ['resolvedSafetyAlerts'],
+		queryFn: () => SafetyAlertsService.getResolvedSafetyAlerts(),
+		enabled: !!allAlerts,
+	});
+
+	return (
+		<div className='grid grid-cols-1 md:grid-cols-4 gap-4'>
+			<Card>
+				<CardContent className='p-6'>
+					<div className='flex items-center justify-between'>
+						<div>
+							<p className='text-sm font-medium text-muted-foreground mb-1'>Tổng số vi phạm</p>
+							<div className='flex items-baseline gap-2'>
+								<h2 className='text-3xl font-bold'>{isLoadingAll ? '...' : allAlerts?.length || 0}</h2>
+								<span className='text-xs font-medium text-red-500'>+12%</span>
+							</div>
+							<p className='text-xs text-muted-foreground mt-1'>So với hôm qua</p>
+						</div>
+						<div className='h-12 w-12 bg-red-100 rounded-full flex items-center justify-center text-red-600'>
+							<Activity className='h-6 w-6' />
+						</div>
+					</div>
+				</CardContent>
+			</Card>
+			<Card>
+				<CardContent className='p-6'>
+					<div className='flex items-center justify-between'>
+						<div>
+							<p className='text-sm font-medium text-muted-foreground mb-1'>Chưa xử lý</p>
+							<div className='flex items-baseline gap-2'>
+								<h2 className='text-3xl font-bold'>
+									{isLoadingPending ? '...' : pendingAlerts?.length || 0}
+								</h2>
+								<span className='text-xs font-medium text-red-500'>+8%</span>
+							</div>
+							<p className='text-xs text-muted-foreground mt-1'>Cần xử lý</p>
+						</div>
+						<div className='h-12 w-12 bg-yellow-100 rounded-full flex items-center justify-center text-yellow-600'>
+							<AlertTriangle className='h-6 w-6' />
+						</div>
+					</div>
+				</CardContent>
+			</Card>
+			<Card>
+				<CardContent className='p-6'>
+					<div className='flex items-center justify-between'>
+						<div>
+							<p className='text-sm font-medium text-muted-foreground mb-1'>Đang xử lý</p>
+							<div className='flex items-baseline gap-2'>
+								<h2 className='text-3xl font-bold'>0</h2>
+								<span className='text-xs font-medium text-green-500'>-5%</span>
+							</div>
+							<p className='text-xs text-muted-foreground mt-1'>Đang tiến hành</p>
+						</div>
+						<div className='h-12 w-12 bg-blue-100 rounded-full flex items-center justify-center text-blue-600'>
+							<Clock className='h-6 w-6' />
+						</div>
+					</div>
+				</CardContent>
+			</Card>
+			<Card>
+				<CardContent className='p-6'>
+					<div className='flex items-center justify-between'>
+						<div>
+							<p className='text-sm font-medium text-muted-foreground mb-1'>Đã xử lý</p>
+							<div className='flex items-baseline gap-2'>
+								<h2 className='text-3xl font-bold'>
+									{isLoadingResolved ? '...' : resolvedAlerts?.length || 0}
+								</h2>
+								<span className='text-xs font-medium text-green-500'>+15%</span>
+							</div>
+							<p className='text-xs text-muted-foreground mt-1'>Hoàn thành</p>
+						</div>
+						<div className='h-12 w-12 bg-green-100 rounded-full flex items-center justify-center text-green-600'>
+							<UserCheck className='h-6 w-6' />
+						</div>
+					</div>
+				</CardContent>
+			</Card>
+		</div>
+	);
+};
+
+// Safety Alerts Table Component - Shows safety alerts data in a table
+export const SafetyAlertsTable = ({
+	searchQuery = '',
+	violationTypeFilter = 'all',
+}: {
+	searchQuery?: string;
+	violationTypeFilter?: string;
+}) => {
+	const {
+		data: safetyAlerts,
+		isLoading: isLoadingAlerts,
+		error: alertsError,
+	} = useQuery({
+		queryKey: ['safetyAlerts'],
+		queryFn: () => SafetyAlertsService.getSafetyAlerts(),
+	});
+
+	// Filter safety alerts based on search and filter criteria
+	const filteredAlerts = safetyAlerts?.filter((alert) => {
+		// Search filter
+		const matchesSearch =
+			searchQuery === '' ||
+			alert.loai_vi_pham.toLowerCase().includes(searchQuery.toLowerCase()) ||
+			alert.khu_vuc.toLowerCase().includes(searchQuery.toLowerCase()) ||
+			(alert.employee_name && alert.employee_name.toLowerCase().includes(searchQuery.toLowerCase()));
+
+		// Violation type filter
+		const matchesType =
+			violationTypeFilter === 'all' ||
+			(violationTypeFilter === 'safety' &&
+				(alert.loai_vi_pham.includes('Không đội mũ') ||
+					alert.loai_vi_pham.includes('Không đeo găng tay') ||
+					alert.loai_vi_pham.includes('Không mặc áo'))) ||
+			(violationTypeFilter === 'security' && alert.loai_vi_pham.includes('khu vực cấm')) ||
+			(violationTypeFilter === 'behavior' &&
+				(alert.loai_vi_pham.includes('Hút thuốc') ||
+					alert.loai_vi_pham.includes('Sử dụng điện thoại') ||
+					alert.loai_vi_pham.includes('Đánh nhau') ||
+					alert.loai_vi_pham.includes('Đùa giỡn')));
+
+		return matchesSearch && matchesType;
+	});
+
+	// Get severity level based on violation type
+	const getSeverityFromViolationType = (type: string): 'high' | 'medium' | 'low' => {
+		if (type.includes('Không đội mũ') || type.includes('khu vực cấm') || type.includes('Đánh nhau')) {
+			return 'high';
+		} else if (
+			type.includes('Không đeo găng tay') ||
+			type.includes('Hút thuốc') ||
+			type.includes('Sử dụng điện thoại')
+		) {
+			return 'medium';
+		} else {
+			return 'low';
+		}
+	};
+
+	// Convert timestamp format
+	const formatTimestamp = (timestamp: string) => {
+		try {
+			if (!timestamp) return '';
+
+			// Convert YYYY-MM-DD HH:MM:SS to DD/MM/YYYY HH:MM
+			const [datePart, timePart] = timestamp.split(' ');
+			if (!datePart || !timePart) return timestamp;
+
+			const [year, month, day] = datePart.split('-');
+			const time = timePart.substring(0, 5); // Get HH:MM
+
+			return `${time} - ${day}/${month}/${year}`;
+		} catch (error) {
+			return timestamp;
+		}
+	};
+
+	// Render loading skeletons
+	const renderAlertSkeletons = () => (
+		<>
+			{[1, 2, 3, 4, 5].map((i) => (
+				<TableRow key={`skeleton-${i}`}>
+					<TableCell>
+						<div className='flex items-center gap-2'>
+							<div className='h-2 w-2 bg-gray-200 rounded-full animate-pulse'></div>
+							<div className='h-4 w-32 bg-gray-200 rounded animate-pulse'></div>
+						</div>
+					</TableCell>
+					<TableCell>
+						<div className='h-4 w-32 bg-gray-200 rounded animate-pulse'></div>
+					</TableCell>
+					<TableCell>
+						<div className='h-4 w-32 bg-gray-200 rounded animate-pulse'></div>
+					</TableCell>
+					<TableCell>
+						<div className='h-4 w-24 bg-gray-200 rounded animate-pulse'></div>
+					</TableCell>
+					<TableCell>
+						<div className='h-6 w-20 bg-gray-200 rounded-full animate-pulse'></div>
+					</TableCell>
+					<TableCell>
+						<div className='h-8 w-8 bg-gray-200 rounded animate-pulse'></div>
+					</TableCell>
+				</TableRow>
+			))}
+		</>
+	);
+
+	return (
+		<Table>
+			<TableHeader>
+				<TableRow>
+					<TableHead>Loại vi phạm</TableHead>
+					<TableHead>Vị trí</TableHead>
+					<TableHead>Thời gian</TableHead>
+					<TableHead>Đối tượng</TableHead>
+					<TableHead>Trạng thái</TableHead>
+					<TableHead className='w-[80px]'></TableHead>
+				</TableRow>
+			</TableHeader>
+
+			<TableBody>
+				{isLoadingAlerts ? (
+					// Show skeleton loading state
+					renderAlertSkeletons()
+				) : alertsError ? (
+					// Show error state
+					<TableRow>
+						<TableCell colSpan={6} className='h-24 text-center'>
+							<div className='flex flex-col items-center justify-center py-4'>
+								<AlertTriangle className='h-8 w-8 text-red-500 mb-2' />
+								<div className='text-sm font-medium'>Đã xảy ra lỗi</div>
+								<div className='text-xs text-muted-foreground'>
+									Không thể tải dữ liệu vi phạm an toàn lao động. Vui lòng thử lại sau.
+								</div>
+							</div>
+						</TableCell>
+					</TableRow>
+				) : filteredAlerts && filteredAlerts.length > 0 ? (
+					// Show actual data
+					filteredAlerts.map((alert: SafetyAlert, index) => {
+						const severity = getSeverityFromViolationType(alert.loai_vi_pham);
+						return (
+							<TableRow key={alert.name || `alert-${index}`}>
+								<TableCell>
+									<div className='flex items-center gap-2'>
+										<div
+											className={`h-2 w-2 rounded-full ${
+												severity === 'high'
+													? 'bg-red-500'
+													: severity === 'medium'
+													? 'bg-yellow-500'
+													: 'bg-blue-500'
+											}`}
+										/>
+										<span>{alert.loai_vi_pham}</span>
+									</div>
+								</TableCell>
+								<TableCell>{alert.khu_vuc}</TableCell>
+								<TableCell>{formatTimestamp(alert.timestamp)}</TableCell>
+								<TableCell>{alert.employee_name || 'Không xác định'}</TableCell>
+								<TableCell>
+									<Badge
+										variant={
+											alert.trang_thai === 'Chưa xử lý'
+												? 'destructive'
+												: alert.trang_thai === 'Đang xử lý'
+												? 'default'
+												: 'outline'
+										}
+									>
+										{alert.trang_thai}
+									</Badge>
+								</TableCell>
+								<TableCell>
+									<DropdownMenu>
+										<DropdownMenuTrigger asChild>
+											<Button variant='ghost' className='h-8 w-8 p-0' aria-label='Mở menu'>
+												<MoreHorizontal className='h-4 w-4' />
+											</Button>
+										</DropdownMenuTrigger>
+										<DropdownMenuContent align='end'>
+											<DropdownMenuLabel>Hành động</DropdownMenuLabel>
+											<DropdownMenuSeparator />
+											<DropdownMenuItem>Xem chi tiết</DropdownMenuItem>
+											<DropdownMenuItem>
+												{alert.trang_thai === 'Chưa xử lý'
+													? 'Xác nhận vi phạm'
+													: 'Đánh dấu chưa xử lý'}
+											</DropdownMenuItem>
+											<DropdownMenuItem>Bác bỏ vi phạm</DropdownMenuItem>
+										</DropdownMenuContent>
+									</DropdownMenu>
+								</TableCell>
+							</TableRow>
+						);
+					})
+				) : (
+					// Show empty state
+					<TableRow>
+						<TableCell colSpan={6} className='h-24 text-center'>
+							<div className='flex flex-col items-center justify-center py-4'>
+								<AlertTriangle className='h-8 w-8 text-muted-foreground opacity-40 mb-2' />
+								<div className='text-sm font-medium text-muted-foreground'>Không có vi phạm</div>
+								<div className='text-xs text-muted-foreground'>
+									{searchQuery || violationTypeFilter !== 'all'
+										? 'Không tìm thấy vi phạm phù hợp với điều kiện lọc'
+										: 'Hiện không có vi phạm an toàn lao động nào được ghi nhận'}
+								</div>
+							</div>
+						</TableCell>
+					</TableRow>
+				)}
+			</TableBody>
+		</Table>
+	);
+};
+
+// Stats Chart Component - Shows violation type distribution
+export const ViolationStatsChart = () => {
+	const { data: violationTypeCounts, isLoading: isLoadingCounts } = useQuery({
+		queryKey: ['violationTypeCounts'],
+		queryFn: () => SafetyAlertsService.getViolationTypeCounts(),
+	});
+
+	// Calculate violation type distribution for chart
+	const getViolationTypeDistribution = () => {
+		if (!violationTypeCounts) return [];
+
+		const total = Object.values(violationTypeCounts).reduce((sum, count) => sum + count, 0);
+
+		return Object.entries(violationTypeCounts)
+			.map(([type, count]) => ({
+				type,
+				count,
+				percentage: Math.round((count / total) * 100),
+			}))
+			.sort((a, b) => b.count - a.count)
+			.slice(0, 3); // Top 3 types
+	};
+
+	const violationDistribution = getViolationTypeDistribution();
+
+	return (
+		<div className='space-y-4'>
+			<div>
+				<h4 className='text-sm font-medium mb-2'>Theo loại vi phạm</h4>
+				{isLoadingCounts ? (
+					// Loading state for violation type counts
+					<div className='space-y-4'>
+						{[1, 2, 3].map((i) => (
+							<div key={`chart-skeleton-${i}`} className='space-y-2'>
+								<div className='flex items-center justify-between'>
+									<div className='h-4 w-32 bg-gray-200 rounded animate-pulse'></div>
+									<div className='h-4 w-12 bg-gray-200 rounded animate-pulse'></div>
+								</div>
+								<div className='h-2 w-full bg-gray-100 rounded-full'>
+									<div className='h-2 w-1/3 bg-gray-200 rounded-full animate-pulse'></div>
+								</div>
+							</div>
+						))}
+					</div>
+				) : violationDistribution.length > 0 ? (
+					// Actual violation type distribution
+					<div className='space-y-2'>
+						{violationDistribution.map((item, index) => (
+							<div key={`violation-type-${index}`} className='space-y-2'>
+								<div className='flex items-center justify-between'>
+									<span className='text-sm'>{item.type}</span>
+									<span className='text-sm font-medium'>{item.percentage}%</span>
+								</div>
+								<div className='h-2 w-full bg-gray-100 rounded-full'>
+									<div
+										className={`h-2 rounded-full ${
+											index === 0 ? 'bg-red-500' : index === 1 ? 'bg-yellow-500' : 'bg-blue-500'
+										}`}
+										style={{ width: `${item.percentage}%` }}
+									></div>
+								</div>
+							</div>
+						))}
+					</div>
+				) : (
+					// No data state
+					<div className='flex justify-center items-center h-32 text-muted-foreground'>Không có dữ liệu</div>
+				)}
+			</div>
+		</div>
+	);
+};
+
+// Recent Violations Component - Shows the most recent violations
+export const RecentViolations = () => {
+	const { data: latestAlerts, isLoading: isLoadingLatest } = useQuery({
+		queryKey: ['latestSafetyAlerts'],
+		queryFn: () => SafetyAlertsService.getLatestAlerts(3),
+	});
+
+	// Get severity level based on violation type
+	const getSeverityFromViolationType = (type: string): 'high' | 'medium' | 'low' => {
+		if (type.includes('Không đội mũ') || type.includes('khu vực cấm') || type.includes('Đánh nhau')) {
+			return 'high';
+		} else if (
+			type.includes('Không đeo găng tay') ||
+			type.includes('Hút thuốc') ||
+			type.includes('Sử dụng điện thoại')
+		) {
+			return 'medium';
+		} else {
+			return 'low';
+		}
+	};
+
+	// Format timestamp to show just the time
+	const formatTimeOnly = (timestamp: string) => {
+		try {
+			if (!timestamp) return '';
+
+			const timePart = timestamp.split(' ')[1];
+			if (!timePart) return timestamp;
+
+			return timePart.substring(0, 5); // Get HH:MM
+		} catch (error) {
+			return timestamp;
+		}
+	};
+
+	if (isLoadingLatest) {
+		return (
+			<div className='space-y-4'>
+				{[1, 2, 3].map((i) => (
+					<div key={`recent-skeleton-${i}`} className='flex items-start gap-4 p-3 rounded-lg border'>
+						<div className='h-10 w-10 bg-gray-200 rounded-full animate-pulse'></div>
+						<div className='flex-1 space-y-2'>
+							<div className='h-4 w-40 bg-gray-200 rounded animate-pulse'></div>
+							<div className='h-3 w-32 bg-gray-200 rounded animate-pulse'></div>
+						</div>
+						<div className='h-8 w-16 bg-gray-200 rounded animate-pulse'></div>
+					</div>
+				))}
+			</div>
+		);
+	}
+
+	if (!latestAlerts || latestAlerts.length === 0) {
+		return (
+			<div className='flex justify-center items-center h-32 text-muted-foreground'>Không có vi phạm gần đây</div>
+		);
+	}
+
+	return (
+		<div className='space-y-4'>
+			{latestAlerts.map((alert, index) => {
+				const severity = getSeverityFromViolationType(alert.loai_vi_pham);
+				return (
+					<div key={alert.name || `recent-${index}`} className='flex items-start gap-4 p-3 rounded-lg border'>
+						<div
+							className={`h-10 w-10 rounded-full flex items-center justify-center flex-shrink-0 ${
+								severity === 'high'
+									? 'bg-red-100 text-red-600'
+									: severity === 'medium'
+									? 'bg-yellow-100 text-yellow-600'
+									: 'bg-blue-100 text-blue-600'
+							}`}
+						>
+							<AlertTriangle className='h-5 w-5' />
+						</div>
+						<div className='flex-1 min-w-0'>
+							<h4 className='text-sm font-semibold truncate'>{alert.loai_vi_pham}</h4>
+							<p className='text-xs text-muted-foreground'>
+								{alert.khu_vuc} - {formatTimeOnly(alert.timestamp)}
+							</p>
+						</div>
+						<Button variant='outline' size='sm' className='flex-shrink-0'>
+							Xem
+						</Button>
+					</div>
+				);
+			})}
+		</div>
+	);
+};
