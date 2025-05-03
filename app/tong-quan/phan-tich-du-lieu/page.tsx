@@ -69,34 +69,12 @@ export default function DataAnalysisPage() {
 
 					{/* Dashboard 1: Đánh Giá Tuân Thủ An Toàn Lao Động */}
 					<TabsContent value='safety' className='space-y-6'>
-						<div className='grid grid-cols-1 md:grid-cols-3 gap-4'>
+						<div className='grid grid-cols-2 md:grid-cols-2 gap-4'>
 							<Card>
 								<PPEComplianceCard />
 							</Card>
 							<Card>
 								<BehaviorViolationCard />
-							</Card>
-							<Card>
-								<CardContent className='p-6'>
-									<div className='flex items-center justify-between'>
-										<div>
-											<p className='text-sm font-medium text-muted-foreground mb-1'>
-												Xu hướng tuân thủ
-											</p>
-											<div className='flex items-baseline gap-2'>
-												<h2 className='text-3xl font-bold text-green-600'>↗</h2>
-												<span className='text-xs font-medium text-green-500 flex items-center'>
-													<ArrowUp className='h-3 w-3 mr-1' />
-													3%
-												</span>
-											</div>
-											<p className='text-xs text-muted-foreground mt-1'>Đang cải thiện</p>
-										</div>
-										<div className='h-12 w-12 bg-green-100 rounded-full flex items-center justify-center text-green-600'>
-											<TrendingUp className='h-6 w-6' />
-										</div>
-									</div>
-								</CardContent>
 							</Card>
 						</div>
 

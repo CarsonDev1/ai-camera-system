@@ -255,7 +255,6 @@ export const BehaviorAlertsTable = ({
 					<TableHead>Bộ phận</TableHead>
 					<TableHead>Thời gian</TableHead>
 					<TableHead>Vị trí</TableHead>
-					<TableHead>Mức độ</TableHead>
 					<TableHead>Trạng thái</TableHead>
 					<TableHead>Hành động</TableHead>
 				</TableRow>
@@ -294,20 +293,6 @@ export const BehaviorAlertsTable = ({
 								<TableCell>{alert.department || '-'}</TableCell>
 								<TableCell>{formatTimestamp(alert.timestamp)}</TableCell>
 								<TableCell>{alert.khu_vuc || 'Không xác định'}</TableCell>
-								<TableCell>
-									<Badge
-										variant='outline'
-										className={
-											severity === 'high'
-												? 'bg-red-50 text-red-700'
-												: severity === 'medium'
-												? 'bg-yellow-50 text-yellow-700'
-												: 'bg-blue-50 text-blue-700'
-										}
-									>
-										{severity === 'high' ? 'Cao' : severity === 'medium' ? 'Trung bình' : 'Thấp'}
-									</Badge>
-								</TableCell>
 								<TableCell>
 									<Badge
 										variant='outline'

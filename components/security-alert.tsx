@@ -65,12 +65,12 @@ const SecurityAlertComponent = () => {
 					<p className='text-sm font-medium text-muted-foreground mb-1'>Cảnh báo an ninh</p>
 					<div className='flex items-baseline gap-2'>
 						<h2 className='text-3xl font-bold'>{displayRate}</h2>
-						{stats.delta !== 0 && (
+						{/* {stats.delta !== 0 && (
 							<span className={`text-xs font-medium ${colorClass} flex items-center`}>
 								<Arrow className='h-3 w-3 mr-1' />
 								{Math.abs(stats.delta)}%
 							</span>
-						)}
+						)} */}
 					</div>
 					<p className='text-xs text-muted-foreground mt-1'>Đã xử lý</p>
 				</div>
