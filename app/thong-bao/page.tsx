@@ -103,14 +103,6 @@ export default function NotificationsPage() {
 			<DashboardHeader title='Thông báo' description='Quản lý và xem các thông báo từ hệ thống' />
 			<div className='p-6 space-y-6 flex-1 overflow-auto'>
 				<div className='flex items-center justify-between'>
-					<Tabs defaultValue='all' className='w-[400px]'>
-						<TabsList className='grid w-full grid-cols-4'>
-							<TabsTrigger value='all'>Tất cả</TabsTrigger>
-							<TabsTrigger value='pending'>Chưa xử lý</TabsTrigger>
-							<TabsTrigger value='alerts'>Cảnh báo</TabsTrigger>
-							<TabsTrigger value='system'>Hệ thống</TabsTrigger>
-						</TabsList>
-					</Tabs>
 					<div className='flex items-center gap-2'>
 						<Button variant='outline'>
 							<BellOff className='h-4 w-4 mr-2' />
@@ -162,10 +154,10 @@ export default function NotificationsPage() {
 						<CardContent className='p-6'>
 							<div className='flex items-center justify-between'>
 								<div>
-									<p className='text-sm font-medium text-muted-foreground mb-1'>Cảnh báo</p>
+									<p className='text-sm font-medium text-muted-foreground mb-1'>Đã xử lý</p>
 									<div className='flex items-baseline gap-2'>
 										<h2 className='text-3xl font-bold'>32</h2>
-										<span className='text-xs font-medium text-yellow-500'>+15%</span>
+										<span className='text-xs font-medium text-yellow-500'>15</span>
 									</div>
 									<p className='text-xs text-muted-foreground mt-1'>Hôm nay</p>
 								</div>
@@ -203,17 +195,6 @@ export default function NotificationsPage() {
 								</div>
 							</div>
 							<div className='flex items-center gap-2'>
-								<Select defaultValue='all'>
-									<SelectTrigger className='w-[180px]'>
-										<SelectValue placeholder='Loại thông báo' />
-									</SelectTrigger>
-									<SelectContent>
-										<SelectItem value='all'>Tất cả</SelectItem>
-										<SelectItem value='alert'>Cảnh báo</SelectItem>
-										<SelectItem value='system'>Hệ thống</SelectItem>
-										<SelectItem value='info'>Thông tin</SelectItem>
-									</SelectContent>
-								</Select>
 								<Select defaultValue='all'>
 									<SelectTrigger className='w-[180px]'>
 										<SelectValue placeholder='Nguồn' />

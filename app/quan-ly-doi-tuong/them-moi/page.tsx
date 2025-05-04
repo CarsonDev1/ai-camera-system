@@ -1,5 +1,8 @@
 'use client';
 import { useState } from 'react';
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import * as z from 'zod';
 import { DashboardHeader } from '@/components/dashboard-header';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -18,11 +21,115 @@ import {
 	AlertDialogHeader,
 	AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
-import { Camera, Upload, Save, UserPlus, Fingerprint, CreditCard, AlertCircle } from 'lucide-react';
+import {
+	Camera,
+	Upload,
+	Save,
+	UserPlus,
+	Fingerprint,
+	CreditCard,
+	AlertCircle,
+	CalendarIcon,
+	Check,
+} from 'lucide-react';
+import { useQuery, useMutation } from '@tanstack/react-query';
+import DepartmentService from '@/services/department-service';
+import GenderService from '@/services/gender-service';
+import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { cn } from '@/lib/utils';
+import { format } from 'date-fns';
+import { Calendar } from '@/components/ui/calendar';
+import { useToast } from '@/hooks/use-toast';
+import EmployeeServiceAction, { EmployeeData, useEmployeeService } from '@/services/create-employee-service';
+import { useRouter } from 'next/navigation';
+
+// Define the validation schema
+const formSchema = z.object({
+	objectType: z.string().min(1, { message: 'Vui lòng chọn loại đối tượng' }),
+	department: z.string().min(1, { message: 'Vui lòng chọn phòng ban' }),
+	fullName: z.string().min(2, { message: 'Họ tên phải có ít nhất 2 ký tự' }).max(100),
+	gender: z.string().min(1, { message: 'Vui lòng chọn giới tính' }),
+	email: z.string().email({ message: 'Email không hợp lệ' }),
+	phone: z.string().min(10, { message: 'Số điện thoại không hợp lệ' }),
+	dob: z.date({
+		required_error: 'Vui lòng chọn ngày sinh',
+		invalid_type_error: 'Ngày sinh không hợp lệ',
+	}),
+	joiningDate: z.date({
+		required_error: 'Vui lòng chọn ngày vào công ty',
+		invalid_type_error: 'Ngày vào công ty không hợp lệ',
+	}),
+	address: z.string().min(5, { message: 'Địa chỉ phải có ít nhất 5 ký tự' }),
+	notes: z.string().optional(),
+});
 
 export default function AddObjectPage() {
 	const [activeTab, setActiveTab] = useState('basic');
 	const [showPermissionAlert, setShowPermissionAlert] = useState(false);
+	const [dateOfBirth, setDateOfBirth] = useState(null);
+	const { toast } = useToast(); // Use the toast hook directly
+	const employeeService = useEmployeeService();
+	const router = useRouter();
+
+	// Initialize react-hook-form with zod validation
+	const form = useForm({
+		resolver: zodResolver(formSchema),
+		defaultValues: {
+			objectType: 'Nhân viên',
+			department: '',
+			fullName: '',
+			gender: '',
+			email: '',
+			phone: '',
+			dob: undefined,
+			joiningDate: undefined,
+			address: '',
+			notes: '',
+		},
+		mode: 'onChange', // Validate on change for better user experience
+	});
+
+	const {
+		data: departments,
+		isLoading,
+		isError,
+	} = useQuery({
+		queryKey: ['departments'],
+		queryFn: () => DepartmentService.getAllDepartments(),
+	});
+
+	const { data: genders } = useQuery({
+		queryKey: ['genders'],
+		queryFn: () => GenderService.getAllGenders(),
+	});
+
+	// Set up the mutation
+	const createEmployeeMutation = useMutation({
+		mutationFn: (employeeData: EmployeeData) => employeeService.createEmployee(employeeData),
+		onSuccess: () => {
+			// Call toast directly
+			toast({
+				title: 'Thêm đối tượng thành công',
+				description: 'Đối tượng đã được thêm vào hệ thống',
+				variant: 'default',
+			});
+			// Reset form after success
+			form.reset();
+
+			setTimeout(() => {
+				router.push('/quan-ly-doi-tuong');
+			}, 1500);
+		},
+		onError: (error: any) => {
+			// Call toast directly
+			toast({
+				title: 'Lỗi',
+				description: `Không thể thêm đối tượng: ${error.message}`,
+				variant: 'destructive',
+			});
+		},
+	});
 
 	const handleTabChange = (value: any) => {
 		if (value === 'auth' || value === 'access') {
@@ -35,6 +142,30 @@ export default function AddObjectPage() {
 	const handleReturnHome = () => {
 		setShowPermissionAlert(false);
 		// You can add navigation logic here
+	};
+
+	// Handle form submission
+	const onSubmit = (formData: any) => {
+		console.log('Form submitted:', formData);
+
+		// Map form data to API structure
+		const employeeData: EmployeeData = {
+			first_name: formData.fullName,
+			gender: formData.gender,
+			date_of_joining: formData.joiningDate ? format(new Date(formData.joiningDate), 'yyyy-MM-dd') : '',
+			date_of_birth: formData.dob ? format(new Date(formData.dob), 'yyyy-MM-dd') : '',
+			department: formData.department,
+			employment_type: formData.objectType,
+			cell_number: formData.phone,
+			personal_email: formData.email,
+			current_address: formData.address,
+		};
+
+		// Execute the mutation
+		createEmployeeMutation.mutate(employeeData);
+
+		// Show a log to debug
+		console.log('Employee data sent to API:', employeeData);
 	};
 
 	return (
@@ -58,73 +189,311 @@ export default function AddObjectPage() {
 								<CardTitle>Thông tin cơ bản</CardTitle>
 								<CardDescription>Nhập thông tin cơ bản của đối tượng</CardDescription>
 							</CardHeader>
-							<CardContent className='space-y-4'>
-								<div className='grid grid-cols-1 md:grid-cols-2 gap-4'>
-									<div className='space-y-2'>
-										<Label htmlFor='objectType'>Loại đối tượng</Label>
-										<Select defaultValue='employee'>
-											<SelectTrigger id='objectType'>
-												<SelectValue placeholder='Chọn loại đối tượng' />
-											</SelectTrigger>
-											<SelectContent>
-												<SelectItem value='employee'>Nhân viên</SelectItem>
-												<SelectItem value='contractor'>Nhà thầu</SelectItem>
-												<SelectItem value='visitor'>Khách</SelectItem>
-											</SelectContent>
-										</Select>
+							<Form {...form}>
+								<form onSubmit={form.handleSubmit(onSubmit)}>
+									<CardContent className='space-y-4'>
+										<div className='grid grid-cols-1 md:grid-cols-2 gap-4'>
+											<div className='space-y-2'>
+												<FormField
+													control={form.control}
+													name='objectType'
+													render={({ field }) => (
+														<FormItem>
+															<FormLabel>Loại đối tượng</FormLabel>
+															<Select
+																onValueChange={field.onChange}
+																defaultValue={field.value}
+															>
+																<FormControl>
+																	<SelectTrigger>
+																		<SelectValue placeholder='Chọn loại đối tượng' />
+																	</SelectTrigger>
+																</FormControl>
+																<SelectContent>
+																	<SelectItem value='Nhân viên'>Nhân viên</SelectItem>
+																	<SelectItem value='Nhà thầu'>Nhà thầu</SelectItem>
+																	<SelectItem value='Khách'>Khách</SelectItem>
+																</SelectContent>
+															</Select>
+															<FormMessage />
+														</FormItem>
+													)}
+												/>
+											</div>
+
+											<div className='space-y-2'>
+												<FormField
+													control={form.control}
+													name='department'
+													render={({ field }) => (
+														<FormItem>
+															<FormLabel>Phòng ban</FormLabel>
+															<Select onValueChange={field.onChange} value={field.value}>
+																<FormControl>
+																	<SelectTrigger>
+																		<SelectValue placeholder='Chọn phòng ban' />
+																	</SelectTrigger>
+																</FormControl>
+																<SelectContent>
+																	{departments?.map((depart) => (
+																		<SelectItem
+																			key={depart.name}
+																			value={depart.name}
+																		>
+																			{depart.name}
+																		</SelectItem>
+																	))}
+																</SelectContent>
+															</Select>
+															<FormMessage />
+														</FormItem>
+													)}
+												/>
+											</div>
+										</div>
+
+										<div className='grid grid-cols-1 md:grid-cols-2 gap-4'>
+											<div className='space-y-2'>
+												<FormField
+													control={form.control}
+													name='fullName'
+													render={({ field }) => (
+														<FormItem>
+															<FormLabel>Họ và tên</FormLabel>
+															<FormControl>
+																<Input placeholder='Nhập họ và tên' {...field} />
+															</FormControl>
+															<FormMessage />
+														</FormItem>
+													)}
+												/>
+											</div>
+
+											<div className='space-y-2'>
+												<FormField
+													control={form.control}
+													name='gender'
+													render={({ field }) => (
+														<FormItem>
+															<FormLabel>Giới tính</FormLabel>
+															<Select onValueChange={field.onChange} value={field.value}>
+																<FormControl>
+																	<SelectTrigger>
+																		<SelectValue placeholder='Chọn giới tính' />
+																	</SelectTrigger>
+																</FormControl>
+																<SelectContent>
+																	{genders?.map((gender) => (
+																		<SelectItem
+																			key={gender.name}
+																			value={gender.name}
+																		>
+																			{gender.name}
+																		</SelectItem>
+																	))}
+																</SelectContent>
+															</Select>
+															<FormMessage />
+														</FormItem>
+													)}
+												/>
+											</div>
+										</div>
+
+										<div className='grid grid-cols-1 md:grid-cols-2 gap-4'>
+											<div className='space-y-2'>
+												<FormField
+													control={form.control}
+													name='email'
+													render={({ field }) => (
+														<FormItem>
+															<FormLabel>Email</FormLabel>
+															<FormControl>
+																<Input
+																	type='email'
+																	placeholder='Nhập email'
+																	{...field}
+																/>
+															</FormControl>
+															<FormMessage />
+														</FormItem>
+													)}
+												/>
+											</div>
+
+											<div className='space-y-2'>
+												<FormField
+													control={form.control}
+													name='phone'
+													render={({ field }) => (
+														<FormItem>
+															<FormLabel>Số điện thoại</FormLabel>
+															<FormControl>
+																<Input placeholder='Nhập số điện thoại' {...field} />
+															</FormControl>
+															<FormMessage />
+														</FormItem>
+													)}
+												/>
+											</div>
+										</div>
+
+										<div className='grid grid-cols-1 md:grid-cols-2 gap-4'>
+											<div className='space-y-2'>
+												<FormField
+													control={form.control}
+													name='dob'
+													render={({ field }) => (
+														<FormItem className='flex flex-col'>
+															<FormLabel>Ngày sinh</FormLabel>
+															<Popover>
+																<PopoverTrigger asChild>
+																	<FormControl>
+																		<Button
+																			variant={'outline'}
+																			className={cn(
+																				'w-full pl-3 text-left font-normal',
+																				!field.value && 'text-muted-foreground'
+																			)}
+																		>
+																			{field.value ? (
+																				format(field.value, 'dd/MM/yyyy')
+																			) : (
+																				<span>Chọn ngày</span>
+																			)}
+																			<CalendarIcon className='ml-auto h-4 w-4 opacity-50' />
+																		</Button>
+																	</FormControl>
+																</PopoverTrigger>
+																<PopoverContent className='w-auto p-0' align='start'>
+																	<Calendar
+																		mode='single'
+																		selected={field.value}
+																		onSelect={field.onChange}
+																		disabled={(date) =>
+																			date > new Date() ||
+																			date < new Date('1900-01-01')
+																		}
+																		initialFocus
+																		captionLayout='dropdown-buttons'
+																		fromYear={1950}
+																		toYear={2010}
+																	/>
+																</PopoverContent>
+															</Popover>
+															<FormDescription>
+																Ngày sinh được dùng để tính tuổi.
+															</FormDescription>
+															<FormMessage />
+														</FormItem>
+													)}
+												/>
+											</div>
+
+											<div className='space-y-2'>
+												<FormField
+													control={form.control}
+													name='joiningDate'
+													render={({ field }) => (
+														<FormItem className='flex flex-col'>
+															<FormLabel>Ngày vào công ty</FormLabel>
+															<Popover>
+																<PopoverTrigger asChild>
+																	<FormControl>
+																		<Button
+																			variant={'outline'}
+																			className={cn(
+																				'w-full pl-3 text-left font-normal',
+																				!field.value && 'text-muted-foreground'
+																			)}
+																		>
+																			{field.value ? (
+																				format(field.value, 'dd/MM/yyyy')
+																			) : (
+																				<span>Chọn ngày</span>
+																			)}
+																			<CalendarIcon className='ml-auto h-4 w-4 opacity-50' />
+																		</Button>
+																	</FormControl>
+																</PopoverTrigger>
+																<PopoverContent className='w-auto p-0' align='start'>
+																	<Calendar
+																		mode='single'
+																		selected={field.value}
+																		onSelect={field.onChange}
+																		initialFocus
+																		captionLayout='dropdown-buttons'
+																		fromYear={2000}
+																		toYear={2025}
+																	/>
+																</PopoverContent>
+															</Popover>
+															<FormDescription>
+																Ngày vào công ty của đối tượng.
+															</FormDescription>
+															<FormMessage />
+														</FormItem>
+													)}
+												/>
+											</div>
+										</div>
+
+										<div className='space-y-2'>
+											<FormField
+												control={form.control}
+												name='address'
+												render={({ field }) => (
+													<FormItem>
+														<FormLabel>Địa chỉ</FormLabel>
+														<FormControl>
+															<Textarea placeholder='Nhập địa chỉ' {...field} />
+														</FormControl>
+														<FormMessage />
+													</FormItem>
+												)}
+											/>
+										</div>
+
+										<div className='space-y-2'>
+											<FormField
+												control={form.control}
+												name='notes'
+												render={({ field }) => (
+													<FormItem>
+														<FormLabel>Ghi chú</FormLabel>
+														<FormControl>
+															<Textarea placeholder='Nhập ghi chú (nếu có)' {...field} />
+														</FormControl>
+														<FormMessage />
+													</FormItem>
+												)}
+											/>
+										</div>
+									</CardContent>
+									<div className='p-6 flex justify-end gap-2'>
+										<Button variant='outline' type='button'>
+											Hủy
+										</Button>
+										<Button type='submit' disabled={createEmployeeMutation.isPending}>
+											{createEmployeeMutation.isPending ? (
+												<>
+													<span className='mr-2 h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent'></span>
+													Đang xử lý...
+												</>
+											) : (
+												<>
+													{createEmployeeMutation.isSuccess ? (
+														<Check className='h-4 w-4 mr-2' />
+													) : (
+														<Save className='h-4 w-4 mr-2' />
+													)}
+													Lưu
+												</>
+											)}
+										</Button>
 									</div>
-
-									<div className='space-y-2'>
-										<Label htmlFor='department'>Phòng ban</Label>
-										<Select>
-											<SelectTrigger id='department'>
-												<SelectValue placeholder='Chọn phòng ban' />
-											</SelectTrigger>
-											<SelectContent>
-												<SelectItem value='production'>Sản xuất</SelectItem>
-												<SelectItem value='technical'>Kỹ thuật</SelectItem>
-												<SelectItem value='maintenance'>Bảo trì</SelectItem>
-												<SelectItem value='hr'>Nhân sự</SelectItem>
-												<SelectItem value='management'>Quản lý</SelectItem>
-											</SelectContent>
-										</Select>
-									</div>
-								</div>
-
-								<div className='grid grid-cols-1 md:grid-cols-2 gap-4'>
-									<div className='space-y-2'>
-										<Label htmlFor='fullName'>Họ và tên</Label>
-										<Input id='fullName' placeholder='Nhập họ và tên' />
-									</div>
-
-									<div className='space-y-2'>
-										<Label htmlFor='employeeId'>Mã nhân viên</Label>
-										<Input id='employeeId' placeholder='Nhập mã nhân viên' />
-									</div>
-								</div>
-
-								<div className='grid grid-cols-1 md:grid-cols-2 gap-4'>
-									<div className='space-y-2'>
-										<Label htmlFor='email'>Email</Label>
-										<Input id='email' type='email' placeholder='Nhập email' />
-									</div>
-
-									<div className='space-y-2'>
-										<Label htmlFor='phone'>Số điện thoại</Label>
-										<Input id='phone' placeholder='Nhập số điện thoại' />
-									</div>
-								</div>
-
-								<div className='space-y-2'>
-									<Label htmlFor='address'>Địa chỉ</Label>
-									<Textarea id='address' placeholder='Nhập địa chỉ' />
-								</div>
-
-								<div className='space-y-2'>
-									<Label htmlFor='notes'>Ghi chú</Label>
-									<Textarea id='notes' placeholder='Nhập ghi chú (nếu có)' />
-								</div>
-							</CardContent>
+								</form>
+							</Form>
 						</Card>
 					</TabsContent>
 
@@ -154,7 +523,7 @@ export default function AddObjectPage() {
 									</div>
 
 									<div className='space-y-4'>
-										<div className='border rounded-lg p-4 h-[300px] flex flex-col items-center justify-center'>
+										<div className='border rounded-lg p-4 h-64 flex flex-col items-center justify-center'>
 											<Upload className='h-12 w-12 text-gray-400 mb-4' />
 											<p className='text-sm text-muted-foreground mb-4'>
 												Kéo và thả ảnh vào đây hoặc nhấn nút bên dưới
@@ -340,14 +709,6 @@ export default function AddObjectPage() {
 						</Card>
 					</TabsContent>
 				</Tabs>
-
-				<div className='flex justify-end gap-2'>
-					<Button variant='outline'>Hủy</Button>
-					<Button>
-						<Save className='h-4 w-4 mr-2' />
-						Lưu
-					</Button>
-				</div>
 			</div>
 
 			{/* Alert Dialog for Permission Denied */}

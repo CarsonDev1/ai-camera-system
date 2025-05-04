@@ -1,7 +1,7 @@
 'use client';
 
-import { useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useState, useEffect } from 'react';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { DashboardHeader } from '@/components/dashboard-header';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -18,8 +18,35 @@ import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Plus, MoreHorizontal, Search, Filter } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
-import EmployeeService from '@/services/list-employee-service';
+import EmployeeService, { EmployeeData } from '@/services/list-employee-service';
 import Link from 'next/link';
+import {
+	Dialog,
+	DialogContent,
+	DialogDescription,
+	DialogFooter,
+	DialogHeader,
+	DialogTitle,
+} from '@/components/ui/dialog';
+import {
+	AlertDialog,
+	AlertDialogAction,
+	AlertDialogCancel,
+	AlertDialogContent,
+	AlertDialogDescription,
+	AlertDialogFooter,
+	AlertDialogHeader,
+	AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
+import { useForm } from 'react-hook-form';
+import { format } from 'date-fns';
+import { Calendar } from '@/components/ui/calendar';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { CalendarIcon } from 'lucide-react';
+import { cn } from '@/lib/utils';
+import { useEmployeeService } from '@/services/create-employee-service';
+import { useToast } from '@/hooks/use-toast';
 
 // Skeleton component for table rows
 const TableRowSkeleton = () => (
@@ -45,14 +72,71 @@ const TableRowSkeleton = () => (
 export default function ObjectManagementPage() {
 	const [searchQuery, setSearchQuery] = useState('');
 	const [typeFilter, setTypeFilter] = useState('all');
+	const [editDialogOpen, setEditDialogOpen] = useState(false);
+	const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+	const [selectedEmployee, setSelectedEmployee] = useState<any>(null);
+	const employeeService = useEmployeeService();
+
+	const queryClient = useQueryClient();
+	const { toast } = useToast();
 
 	const {
 		data: employees,
 		isLoading,
 		error,
+		refetch,
 	} = useQuery({
 		queryKey: ['employees'],
 		queryFn: () => EmployeeService.getEmployees(),
+	});
+
+	const getEmployeeQuery = useQuery({
+		queryKey: ['employee', selectedEmployee?.name],
+		queryFn: () => (selectedEmployee ? employeeService.getEmployeeByName(selectedEmployee.name) : null),
+		enabled: !!selectedEmployee && editDialogOpen,
+	});
+
+	// Update employee mutation
+	const updateMutation = useMutation({
+		mutationFn: (data: { name: string; employeeData: EmployeeData }) =>
+			employeeService.updateEmployee(data.name, data.employeeData),
+		onSuccess: () => {
+			queryClient.invalidateQueries({ queryKey: ['employees'] });
+			refetch();
+			toast({
+				title: 'Cập nhật thành công',
+				description: 'Thông tin đối tượng đã được cập nhật',
+			});
+			setEditDialogOpen(false);
+		},
+		onError: (error) => {
+			toast({
+				title: 'Lỗi cập nhật',
+				description: 'Không thể cập nhật thông tin. Vui lòng thử lại sau.',
+				variant: 'destructive',
+			});
+		},
+	});
+
+	// Delete employee mutation
+	const deleteMutation = useMutation({
+		mutationFn: (name: string) => employeeService.deleteEmployee(name),
+		onSuccess: () => {
+			queryClient.invalidateQueries({ queryKey: ['employees'] });
+			refetch();
+			toast({
+				title: 'Xóa thành công',
+				description: 'Đối tượng đã được xóa khỏi hệ thống',
+			});
+			setDeleteDialogOpen(false);
+		},
+		onError: (error) => {
+			toast({
+				title: 'Lỗi xóa',
+				description: 'Không thể xóa đối tượng. Vui lòng thử lại sau.',
+				variant: 'destructive',
+			});
+		},
 	});
 
 	// Map employment types to display names
@@ -95,6 +179,25 @@ export default function ObjectManagementPage() {
 
 		return matchesSearch && matchesType;
 	});
+
+	// Handle edit button click
+	const handleEditClick = (employee: any) => {
+		setSelectedEmployee(employee);
+		setEditDialogOpen(true);
+	};
+
+	// Handle delete button click
+	const handleDeleteClick = (employee: any) => {
+		setSelectedEmployee(employee);
+		setDeleteDialogOpen(true);
+	};
+
+	// Handle delete confirmation
+	const handleDeleteConfirm = () => {
+		if (selectedEmployee) {
+			deleteMutation.mutate(selectedEmployee.name);
+		}
+	};
 
 	// Display error with retry button if there's an error
 	if (error) {
@@ -225,8 +328,15 @@ export default function ObjectManagementPage() {
 																<DropdownMenuLabel>Hành động</DropdownMenuLabel>
 																<DropdownMenuSeparator />
 																<DropdownMenuItem>Xem chi tiết</DropdownMenuItem>
-																<DropdownMenuItem>Chỉnh sửa</DropdownMenuItem>
-																<DropdownMenuItem className='text-red-600'>
+																<DropdownMenuItem
+																	onClick={() => handleEditClick(employee)}
+																>
+																	Chỉnh sửa
+																</DropdownMenuItem>
+																<DropdownMenuItem
+																	className='text-red-600'
+																	onClick={() => handleDeleteClick(employee)}
+																>
 																	Xóa
 																</DropdownMenuItem>
 															</DropdownMenuContent>
@@ -250,6 +360,356 @@ export default function ObjectManagementPage() {
 					</CardContent>
 				</Card>
 			</div>
+
+			{/* Edit Employee Dialog */}
+			{selectedEmployee && (
+				<EditEmployeeDialog
+					open={editDialogOpen}
+					onOpenChange={setEditDialogOpen}
+					employee={getEmployeeQuery.data || selectedEmployee}
+					onSubmit={(data) => {
+						updateMutation.mutate({
+							name: selectedEmployee.name,
+							employeeData: data,
+						});
+					}}
+					isSubmitting={updateMutation.isPending}
+					isLoading={getEmployeeQuery.isLoading}
+				/>
+			)}
+
+			{/* Delete Confirmation Dialog */}
+			{selectedEmployee && (
+				<AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+					<AlertDialogContent>
+						<AlertDialogHeader>
+							<AlertDialogTitle>Xác nhận xóa</AlertDialogTitle>
+							<AlertDialogDescription>
+								Bạn có chắc chắn muốn xóa đối tượng "{selectedEmployee.employee_name}"? Hành động này
+								không thể hoàn tác.
+							</AlertDialogDescription>
+						</AlertDialogHeader>
+						<AlertDialogFooter>
+							<AlertDialogCancel>Hủy</AlertDialogCancel>
+							<AlertDialogAction
+								onClick={handleDeleteConfirm}
+								className='bg-red-600 hover:bg-red-700'
+								disabled={deleteMutation.isPending}
+							>
+								{deleteMutation.isPending ? 'Đang xóa...' : 'Xóa'}
+							</AlertDialogAction>
+						</AlertDialogFooter>
+					</AlertDialogContent>
+				</AlertDialog>
+			)}
 		</div>
+	);
+}
+
+// Edit Employee Dialog Component
+function EditEmployeeDialog({
+	open,
+	onOpenChange,
+	employee,
+	onSubmit,
+	isSubmitting,
+	isLoading = false,
+}: {
+	open: boolean;
+	onOpenChange: (open: boolean) => void;
+	employee: any;
+	onSubmit: (data: EmployeeData) => void;
+	isSubmitting: boolean;
+	isLoading?: boolean;
+}) {
+	const form = useForm<EmployeeData>({
+		defaultValues: {
+			first_name: employee.first_name || '',
+			gender: employee.gender || 'Male',
+			date_of_joining: employee.date_of_joining || '',
+			date_of_birth: employee.date_of_birth || '',
+			department: employee.department || '',
+			employment_type: employee.employment_type || 'Full-time',
+			cell_number: employee.cell_number || '',
+			personal_email: employee.personal_email || '',
+			current_address: employee.current_address || '',
+		},
+	});
+
+	// Reset form values when employee changes
+	useEffect(() => {
+		if (employee && !isLoading) {
+			form.reset({
+				first_name: employee.first_name || '',
+				gender: employee.gender || 'Male',
+				date_of_joining: employee.date_of_joining || '',
+				date_of_birth: employee.date_of_birth || '',
+				department: employee.department || '',
+				employment_type: employee.employment_type || 'Full-time',
+				cell_number: employee.cell_number || '',
+				personal_email: employee.personal_email || '',
+				current_address: employee.current_address || '',
+			});
+		}
+	}, [employee, form, isLoading]);
+
+	if (isLoading) {
+		return (
+			<Dialog open={open} onOpenChange={onOpenChange}>
+				<DialogContent>
+					<DialogHeader>
+						<DialogTitle>Đang tải thông tin...</DialogTitle>
+					</DialogHeader>
+					<div className='flex justify-center p-4'>
+						{/* Add loading indicator here */}
+						<div className='h-8 w-8 animate-spin rounded-full border-2 border-primary border-t-transparent'></div>
+					</div>
+				</DialogContent>
+			</Dialog>
+		);
+	}
+
+	const handleSubmit = (data: EmployeeData) => {
+		onSubmit(data);
+	};
+
+	return (
+		<Dialog open={open} onOpenChange={onOpenChange}>
+			<DialogContent className='sm:max-w-[600px]'>
+				<DialogHeader>
+					<DialogTitle>Chỉnh sửa thông tin đối tượng</DialogTitle>
+					<DialogDescription>Cập nhật thông tin của đối tượng. Nhấn Lưu khi hoàn tất.</DialogDescription>
+				</DialogHeader>
+				<Form {...form}>
+					<form onSubmit={form.handleSubmit(handleSubmit)} className='space-y-4'>
+						<FormField
+							control={form.control}
+							name='first_name'
+							render={({ field }) => (
+								<FormItem>
+									<FormLabel>Họ và tên</FormLabel>
+									<FormControl>
+										<Input placeholder='Nhập họ và tên' {...field} />
+									</FormControl>
+									<FormMessage />
+								</FormItem>
+							)}
+						/>
+
+						<div className='grid grid-cols-2 gap-4'>
+							<FormField
+								control={form.control}
+								name='gender'
+								render={({ field }) => (
+									<FormItem>
+										<FormLabel>Giới tính</FormLabel>
+										<Select onValueChange={field.onChange} defaultValue={field.value}>
+											<FormControl>
+												<SelectTrigger>
+													<SelectValue placeholder='Chọn giới tính' />
+												</SelectTrigger>
+											</FormControl>
+											<SelectContent>
+												<SelectItem value='Male'>Nam</SelectItem>
+												<SelectItem value='Female'>Nữ</SelectItem>
+												<SelectItem value='Other'>Khác</SelectItem>
+											</SelectContent>
+										</Select>
+										<FormMessage />
+									</FormItem>
+								)}
+							/>
+
+							<FormField
+								control={form.control}
+								name='date_of_birth'
+								render={({ field }) => (
+									<FormItem className='flex flex-col'>
+										<FormLabel>Ngày sinh</FormLabel>
+										<Popover>
+											<PopoverTrigger asChild>
+												<FormControl>
+													<Button
+														variant={'outline'}
+														className={cn(
+															'w-full pl-3 text-left font-normal',
+															!field.value && 'text-muted-foreground'
+														)}
+													>
+														{field.value ? (
+															format(new Date(field.value), 'dd/MM/yyyy')
+														) : (
+															<span>Chọn ngày</span>
+														)}
+														<CalendarIcon className='ml-auto h-4 w-4 opacity-50' />
+													</Button>
+												</FormControl>
+											</PopoverTrigger>
+											<PopoverContent className='w-auto p-0' align='start'>
+												<Calendar
+													mode='single'
+													selected={field.value ? new Date(field.value) : undefined}
+													onSelect={(date) =>
+														field.onChange(date ? format(date, 'yyyy-MM-dd') : '')
+													}
+													initialFocus
+												/>
+											</PopoverContent>
+										</Popover>
+										<FormMessage />
+									</FormItem>
+								)}
+							/>
+						</div>
+
+						<div className='grid grid-cols-2 gap-4'>
+							<FormField
+								control={form.control}
+								name='department'
+								render={({ field }) => (
+									<FormItem>
+										<FormLabel>Bộ phận</FormLabel>
+										<Select onValueChange={field.onChange} defaultValue={field.value}>
+											<FormControl>
+												<SelectTrigger>
+													<SelectValue placeholder='Chọn bộ phận' />
+												</SelectTrigger>
+											</FormControl>
+											<SelectContent>
+												<SelectItem value='Management'>Ban lãnh đạo</SelectItem>
+												<SelectItem value='HR'>Nhân sự</SelectItem>
+												<SelectItem value='IT'>CNTT</SelectItem>
+												<SelectItem value='Finance'>Tài chính</SelectItem>
+												<SelectItem value='Operations'>Vận hành</SelectItem>
+												<SelectItem value='Marketing'>Marketing</SelectItem>
+												<SelectItem value='Sales'>Kinh doanh</SelectItem>
+											</SelectContent>
+										</Select>
+										<FormMessage />
+									</FormItem>
+								)}
+							/>
+
+							<FormField
+								control={form.control}
+								name='employment_type'
+								render={({ field }) => (
+									<FormItem>
+										<FormLabel>Loại đối tượng</FormLabel>
+										<Select onValueChange={field.onChange} defaultValue={field.value}>
+											<FormControl>
+												<SelectTrigger>
+													<SelectValue placeholder='Chọn loại đối tượng' />
+												</SelectTrigger>
+											</FormControl>
+											<SelectContent>
+												<SelectItem value='Full-time'>Nhân viên toàn thời gian</SelectItem>
+												<SelectItem value='Part-time'>Nhân viên bán thời gian</SelectItem>
+												<SelectItem value='Contract'>Nhà thầu</SelectItem>
+												<SelectItem value='Temporary'>Khách</SelectItem>
+												<SelectItem value='Intern'>Thực tập sinh</SelectItem>
+											</SelectContent>
+										</Select>
+										<FormMessage />
+									</FormItem>
+								)}
+							/>
+						</div>
+
+						<FormField
+							control={form.control}
+							name='date_of_joining'
+							render={({ field }) => (
+								<FormItem className='flex flex-col'>
+									<FormLabel>Ngày bắt đầu</FormLabel>
+									<Popover>
+										<PopoverTrigger asChild>
+											<FormControl>
+												<Button
+													variant={'outline'}
+													className={cn(
+														'w-full pl-3 text-left font-normal',
+														!field.value && 'text-muted-foreground'
+													)}
+												>
+													{field.value ? (
+														format(new Date(field.value), 'dd/MM/yyyy')
+													) : (
+														<span>Chọn ngày</span>
+													)}
+													<CalendarIcon className='ml-auto h-4 w-4 opacity-50' />
+												</Button>
+											</FormControl>
+										</PopoverTrigger>
+										<PopoverContent className='w-auto p-0' align='start'>
+											<Calendar
+												mode='single'
+												selected={field.value ? new Date(field.value) : undefined}
+												onSelect={(date) =>
+													field.onChange(date ? format(date, 'yyyy-MM-dd') : '')
+												}
+												initialFocus
+											/>
+										</PopoverContent>
+									</Popover>
+									<FormMessage />
+								</FormItem>
+							)}
+						/>
+
+						<FormField
+							control={form.control}
+							name='cell_number'
+							render={({ field }) => (
+								<FormItem>
+									<FormLabel>Số điện thoại</FormLabel>
+									<FormControl>
+										<Input placeholder='Nhập số điện thoại' {...field} />
+									</FormControl>
+									<FormMessage />
+								</FormItem>
+							)}
+						/>
+
+						<FormField
+							control={form.control}
+							name='personal_email'
+							render={({ field }) => (
+								<FormItem>
+									<FormLabel>Email</FormLabel>
+									<FormControl>
+										<Input placeholder='Nhập địa chỉ email' {...field} />
+									</FormControl>
+									<FormMessage />
+								</FormItem>
+							)}
+						/>
+
+						<FormField
+							control={form.control}
+							name='current_address'
+							render={({ field }) => (
+								<FormItem>
+									<FormLabel>Địa chỉ</FormLabel>
+									<FormControl>
+										<Input placeholder='Nhập địa chỉ' {...field} />
+									</FormControl>
+									<FormMessage />
+								</FormItem>
+							)}
+						/>
+
+						<DialogFooter>
+							<Button type='button' variant='outline' onClick={() => onOpenChange(false)}>
+								Hủy
+							</Button>
+							<Button type='submit' disabled={isSubmitting}>
+								{isSubmitting ? 'Đang lưu...' : 'Lưu thay đổi'}
+							</Button>
+						</DialogFooter>
+					</form>
+				</Form>
+			</DialogContent>
+		</Dialog>
 	);
 }

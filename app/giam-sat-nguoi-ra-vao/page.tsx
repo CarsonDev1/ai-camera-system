@@ -26,12 +26,39 @@ import {
 	Calendar,
 	Download,
 	Eye,
+	X,
 } from 'lucide-react';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import AccessStatsSummary from '@/components/access-stats';
+import {
+	Dialog,
+	DialogContent,
+	DialogDescription,
+	DialogFooter,
+	DialogHeader,
+	DialogTitle,
+} from '@/components/ui/dialog';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { cn } from '@/lib/utils';
+import { format } from 'date-fns';
+import { vi } from 'date-fns/locale';
+import { Calendar as CalendarComponent } from '@/components/ui/calendar';
+import { Label } from '@/components/ui/label';
+import { toast } from '@/components/ui/use-toast';
 
 export default function AccessMonitoringPage() {
 	const [selectedTab, setSelectedTab] = useState('today');
+	const [dateRangeDialogOpen, setDateRangeDialogOpen] = useState(false);
+	const [singleDateDialogOpen, setSingleDateDialogOpen] = useState(false);
+	const [startDate, setStartDate] = useState<Date | undefined>(undefined);
+	const [endDate, setEndDate] = useState<Date | undefined>(undefined);
+	const [customDateRange, setCustomDateRange] = useState<{ from: Date; to: Date } | null>(null);
+	const [showTimeSelectors, setShowTimeSelectors] = useState(false);
+	const [startTime, setStartTime] = useState('00:00');
+	const [endTime, setEndTime] = useState('23:59');
+	const [selectedDate, setSelectedDate] = useState<Date | undefined>(undefined);
+	const [isFilterByDay, setIsFilterByDay] = useState(false);
+
 	// Dữ liệu mẫu cho bảng
 	const accessRecords = [
 		{
@@ -88,7 +115,193 @@ export default function AccessMonitoringPage() {
 
 	const handleTabChange = (value: string) => {
 		setSelectedTab(value);
+
+		// Nếu tab là "custom", luôn mở dialog chọn khoảng thời gian
+		if (value === 'custom') {
+			// Luôn mở dialog chọn ngày khi chuyển sang tab tùy chỉnh,
+			// không quan tâm đã có customDateRange hay chưa
+			setDateRangeDialogOpen(true);
+
+			// Nếu đang filter theo ngày, reset lại
+			if (isFilterByDay) {
+				setIsFilterByDay(false);
+				setSelectedDate(undefined);
+			}
+		} else {
+			// Khi chuyển về các tab khác, xóa bỏ filter theo khoảng thời gian custom
+			if (selectedTab === 'custom') {
+				setCustomDateRange(null);
+			}
+		}
 	};
+
+	// Hiển thị dialog khi chọn nút "Chọn ngày"
+	const handleDateButtonClick = () => {
+		setSingleDateDialogOpen(true);
+	};
+
+	const getDateFilterText = () => {
+		if (!customDateRange) return 'Chọn ngày';
+
+		const { from, to } = customDateRange;
+		if (from.toDateString() === to.toDateString()) {
+			// Nếu cùng ngày, hiển thị ngày + khoảng giờ
+			return `${format(from, 'dd/MM/yyyy')} (${format(from, 'HH:mm')} - ${format(to, 'HH:mm')})`;
+		} else {
+			// Nếu khác ngày, hiển thị khoảng ngày
+			return `${format(from, 'dd/MM/yyyy')} - ${format(to, 'dd/MM/yyyy')}`;
+		}
+	};
+
+	const handleApplySingleDateFilter = () => {
+		if (!selectedDate) {
+			toast({
+				title: 'Lỗi chọn ngày',
+				description: 'Vui lòng chọn ngày',
+				variant: 'destructive',
+			});
+			return;
+		}
+
+		// Tạo khoảng thời gian cho cả ngày được chọn (từ 00:00 đến 23:59)
+		const start = new Date(selectedDate);
+		start.setHours(0, 0, 0, 0);
+
+		const end = new Date(selectedDate);
+		end.setHours(23, 59, 59, 999);
+
+		// Cập nhật state để lưu khoảng thời gian đã chọn
+		setCustomDateRange({ from: start, to: end });
+		setIsFilterByDay(true);
+
+		// Đóng dialog
+		setSingleDateDialogOpen(false);
+
+		// Thông báo thành công
+		toast({
+			title: 'Áp dụng bộ lọc thành công',
+			description: `Dữ liệu cho ngày ${format(selectedDate, 'dd/MM/yyyy')}`,
+		});
+	};
+
+	// Xử lý khi áp dụng filter ngày
+	const handleApplyDateFilter = () => {
+		if (!startDate || !endDate) {
+			toast({
+				title: 'Lỗi chọn ngày',
+				description: 'Vui lòng chọn cả ngày bắt đầu và ngày kết thúc',
+				variant: 'destructive',
+			});
+			return;
+		}
+
+		// Tạo bản sao date objects để tránh thay đổi date reference
+		const start = new Date(startDate);
+		const end = new Date(endDate);
+
+		// Thêm thời gian nếu cần
+		if (showTimeSelectors) {
+			const [startHour, startMinute] = startTime.split(':').map(Number);
+			const [endHour, endMinute] = endTime.split(':').map(Number);
+
+			start.setHours(startHour, startMinute, 0);
+			end.setHours(endHour, endMinute, 59);
+		} else {
+			// Nếu không chọn giờ, mặc định là cả ngày
+			start.setHours(0, 0, 0);
+			end.setHours(23, 59, 59);
+		}
+
+		// Kiểm tra logic thời gian
+		if (start > end) {
+			toast({
+				title: 'Lỗi khoảng thời gian',
+				description: 'Thời gian bắt đầu phải trước thời gian kết thúc',
+				variant: 'destructive',
+			});
+			return;
+		}
+
+		// Cập nhật state để lưu khoảng thời gian đã chọn
+		setCustomDateRange({ from: start, to: end });
+
+		// Đóng dialog và chuyển tab sang custom nếu chưa ở tab đó
+		setDateRangeDialogOpen(false);
+		if (selectedTab !== 'custom') {
+			setSelectedTab('custom');
+		}
+
+		// Thông báo thành công
+		toast({
+			title: 'Áp dụng bộ lọc thành công',
+			description: `Dữ liệu từ ${format(start, 'dd/MM/yyyy HH:mm')} đến ${format(end, 'dd/MM/yyyy HH:mm')}`,
+		});
+	};
+
+	// Hiển thị thông tin ngày đã chọn cho nút "Chọn ngày"
+	const getSelectedDateText = () => {
+		if (!selectedDate || !isFilterByDay) return 'Chọn ngày';
+		return format(selectedDate, 'dd/MM/yyyy');
+	};
+
+	// Reset các giá trị ngày/giờ khi đóng dialog
+	const handleDialogOpenChange = (open: boolean) => {
+		if (!open) {
+			// Chỉ reset nếu chưa áp dụng filter
+			if (!customDateRange && selectedTab === 'custom') {
+				setSelectedTab('today');
+			}
+		}
+		setDateRangeDialogOpen(open);
+	};
+
+	// Hiển thị khoảng thời gian đã chọn khi ở tab custom
+	const getCustomDateRangeText = () => {
+		if (!customDateRange) return 'Chọn khoảng thời gian';
+
+		const { from, to } = customDateRange;
+		if (from.toDateString() === to.toDateString()) {
+			// Nếu cùng ngày, hiển thị ngày + khoảng giờ
+			return `${format(from, 'dd/MM/yyyy')} (${format(from, 'HH:mm')} - ${format(to, 'HH:mm')})`;
+		} else {
+			// Nếu khác ngày, hiển thị khoảng ngày
+			return `${format(from, 'dd/MM/yyyy HH:mm')} - ${format(to, 'dd/MM/yyyy HH:mm')}`;
+		}
+	};
+
+	useEffect(() => {
+		// Reset các giá trị khi mở dialog
+		if (dateRangeDialogOpen) {
+			// Nếu đã có customDateRange, dùng nó làm giá trị mặc định
+			if (customDateRange) {
+				setStartDate(customDateRange.from);
+				setEndDate(customDateRange.to);
+
+				// Nếu các giờ khác 00:00 và 23:59, dùng chúng và bật selector thời gian
+				const startHour = customDateRange.from.getHours();
+				const startMinute = customDateRange.from.getMinutes();
+				const endHour = customDateRange.to.getHours();
+				const endMinute = customDateRange.to.getMinutes();
+
+				if (startHour !== 0 || startMinute !== 0 || endHour !== 23 || endMinute !== 59) {
+					setShowTimeSelectors(true);
+					setStartTime(`${startHour.toString().padStart(2, '0')}:${startMinute.toString().padStart(2, '0')}`);
+					setEndTime(`${endHour.toString().padStart(2, '0')}:${endMinute.toString().padStart(2, '0')}`);
+				} else {
+					setShowTimeSelectors(false);
+					setStartTime('00:00');
+					setEndTime('23:59');
+				}
+			} else {
+				// Nếu chưa có, reset về giá trị mặc định
+				setStartDate(undefined);
+				setEndDate(undefined);
+				setShowTimeSelectors(false);
+				setStartTime('00:00');
+				setEndTime('23:59');
+			}
+		}
+	}, [dateRangeDialogOpen, customDateRange]);
 
 	return (
 		<div className='flex flex-col h-full'>
@@ -112,10 +325,33 @@ export default function AccessMonitoringPage() {
 						</TabsList>
 					</Tabs>
 					<div className='flex items-center gap-2'>
-						<Button variant='outline'>
+						<Button
+							variant={isFilterByDay ? 'default' : 'outline'}
+							onClick={handleDateButtonClick}
+							className={
+								isFilterByDay ? 'bg-blue-100 text-blue-800 hover:bg-blue-200 border-blue-300' : ''
+							}
+						>
 							<Calendar className='h-4 w-4 mr-2' />
-							Chọn ngày
+							{getSelectedDateText()}
 						</Button>
+						{isFilterByDay && (
+							<Button
+								variant='ghost'
+								size='icon'
+								onClick={() => {
+									setIsFilterByDay(false);
+									setSelectedDate(undefined);
+									// Nếu đang ở tab tùy chỉnh và không có customDateRange, quay về tab hôm nay
+									if (selectedTab === 'custom' && !customDateRange) {
+										setSelectedTab('today');
+									}
+								}}
+								className='text-gray-500 hover:text-gray-700'
+							>
+								<X className='h-4 w-4' />
+							</Button>
+						)}
 						<Button>
 							<Download className='h-4 w-4 mr-2' />
 							Xuất báo cáo
@@ -123,7 +359,11 @@ export default function AccessMonitoringPage() {
 					</div>
 				</div>
 
-				<AccessStatsSummary selectedTab={selectedTab} />
+				<AccessStatsSummary
+					selectedTab={selectedTab}
+					customDateRange={selectedTab === 'custom' ? customDateRange : null}
+					isFilterByDay={isFilterByDay}
+				/>
 
 				<Card>
 					<CardHeader className='flex flex-row items-center justify-between'>
@@ -448,6 +688,166 @@ export default function AccessMonitoringPage() {
 					</Card>
 				</div>
 			</div>
+
+			{/* Dialog chọn khoảng thời gian */}
+			<Dialog open={dateRangeDialogOpen} onOpenChange={handleDialogOpenChange}>
+				<DialogContent className='sm:max-w-[550px]'>
+					<DialogHeader>
+						<DialogTitle>Chọn khoảng thời gian</DialogTitle>
+						<DialogDescription>Tùy chỉnh khoảng thời gian để xem dữ liệu người ra vào.</DialogDescription>
+					</DialogHeader>
+
+					<div className='grid gap-6'>
+						<div className='grid grid-cols-2 gap-4'>
+							<div className='space-y-2'>
+								<Label htmlFor='startDate'>Từ ngày</Label>
+								<Popover>
+									<PopoverTrigger asChild>
+										<Button
+											id='startDate'
+											variant={'outline'}
+											className={cn(
+												'w-full justify-start text-left font-normal',
+												!startDate && 'text-muted-foreground'
+											)}
+										>
+											<Calendar className='mr-2 h-4 w-4' />
+											{startDate ? (
+												format(startDate, 'dd/MM/yyyy', { locale: vi })
+											) : (
+												<span>Chọn ngày bắt đầu</span>
+											)}
+										</Button>
+									</PopoverTrigger>
+									<PopoverContent className='w-auto p-0' align='start'>
+										<CalendarComponent
+											mode='single'
+											selected={startDate}
+											onSelect={setStartDate}
+											initialFocus
+											locale={vi}
+											disabled={(date) => {
+												// Không cho chọn ngày trong tương lai
+												return date > new Date();
+											}}
+										/>
+									</PopoverContent>
+								</Popover>
+							</div>
+
+							<div className='space-y-2'>
+								<Label htmlFor='endDate'>Đến ngày</Label>
+								<Popover>
+									<PopoverTrigger asChild>
+										<Button
+											id='endDate'
+											variant={'outline'}
+											className={cn(
+												'w-full justify-start text-left font-normal',
+												!endDate && 'text-muted-foreground'
+											)}
+										>
+											<Calendar className='mr-2 h-4 w-4' />
+											{endDate ? (
+												format(endDate, 'dd/MM/yyyy', { locale: vi })
+											) : (
+												<span>Chọn ngày kết thúc</span>
+											)}
+										</Button>
+									</PopoverTrigger>
+									<PopoverContent className='w-auto p-0' align='start'>
+										<CalendarComponent
+											mode='single'
+											selected={endDate}
+											onSelect={setEndDate}
+											initialFocus
+											locale={vi}
+											disabled={(date) => {
+												// Không cho chọn ngày trước startDate hoặc ngày tương lai
+												return (startDate && date < startDate) || date > new Date();
+											}}
+										/>
+									</PopoverContent>
+								</Popover>
+							</div>
+						</div>
+
+						<div className='flex items-center space-x-2'>
+							<input
+								type='checkbox'
+								id='showTime'
+								className='h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary'
+								checked={showTimeSelectors}
+								onChange={(e) => setShowTimeSelectors(e.target.checked)}
+							/>
+							<Label htmlFor='showTime' className='text-sm'>
+								Chọn giờ cụ thể
+							</Label>
+						</div>
+
+						{showTimeSelectors && (
+							<div className='grid grid-cols-2 gap-4'>
+								<div className='space-y-2'>
+									<Label htmlFor='startTime'>Từ giờ</Label>
+									<Input
+										id='startTime'
+										type='time'
+										value={startTime}
+										onChange={(e) => setStartTime(e.target.value)}
+									/>
+								</div>
+
+								<div className='space-y-2'>
+									<Label htmlFor='endTime'>Đến giờ</Label>
+									<Input
+										id='endTime'
+										type='time'
+										value={endTime}
+										onChange={(e) => setEndTime(e.target.value)}
+									/>
+								</div>
+							</div>
+						)}
+					</div>
+
+					<DialogFooter>
+						<Button variant='outline' onClick={() => setDateRangeDialogOpen(false)}>
+							Hủy
+						</Button>
+						<Button onClick={handleApplyDateFilter}>Áp dụng</Button>
+					</DialogFooter>
+				</DialogContent>
+			</Dialog>
+
+			<Dialog open={singleDateDialogOpen} onOpenChange={setSingleDateDialogOpen}>
+				<DialogContent className='sm:max-w-[350px]'>
+					<DialogHeader>
+						<DialogTitle>Chọn ngày</DialogTitle>
+						<DialogDescription>Chọn một ngày cụ thể để xem dữ liệu.</DialogDescription>
+					</DialogHeader>
+
+					<div className='py-4'>
+						<CalendarComponent
+							mode='single'
+							selected={selectedDate}
+							onSelect={setSelectedDate}
+							initialFocus
+							locale={vi}
+							disabled={(date) => {
+								// Không cho chọn ngày trong tương lai
+								return date > new Date();
+							}}
+						/>
+					</div>
+
+					<DialogFooter>
+						<Button variant='outline' onClick={() => setSingleDateDialogOpen(false)}>
+							Hủy
+						</Button>
+						<Button onClick={handleApplySingleDateFilter}>Áp dụng</Button>
+					</DialogFooter>
+				</DialogContent>
+			</Dialog>
 		</div>
 	);
 }

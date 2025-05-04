@@ -316,19 +316,6 @@ export default function SafetyMonitoringPage() {
 					>
 						<div className='space-y-6'>
 							<div className='flex items-center justify-between'>
-								<Tabs
-									defaultValue='all'
-									value={statusFilter}
-									onValueChange={setStatusFilter}
-									className='w-[400px]'
-								>
-									<TabsList className='grid w-full grid-cols-4'>
-										<TabsTrigger value='all'>Tất cả</TabsTrigger>
-										<TabsTrigger value='pending'>Chưa xử lý</TabsTrigger>
-										<TabsTrigger value='processing'>Đang xử lý</TabsTrigger>
-										<TabsTrigger value='processed'>Đã xử lý</TabsTrigger>
-									</TabsList>
-								</Tabs>
 								<div className='flex items-center gap-2'>
 									<Button variant='outline'>
 										<Calendar className='h-4 w-4 mr-2' />
