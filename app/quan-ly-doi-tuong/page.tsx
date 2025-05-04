@@ -47,6 +47,8 @@ import { CalendarIcon } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useEmployeeService } from '@/services/create-employee-service';
 import { useToast } from '@/hooks/use-toast';
+import DepartmentService from '@/services/department-service';
+import GenderService from '@/services/gender-service';
 
 // Skeleton component for table rows
 const TableRowSkeleton = () => (
@@ -616,6 +618,16 @@ function EditEmployeeDialog({
 	isSubmitting: boolean;
 	isLoading?: boolean;
 }) {
+	const { data: departments, isLoading: isDepartmentsLoading } = useQuery({
+		queryKey: ['departments'],
+		queryFn: () => DepartmentService.getAllDepartments(),
+	});
+
+	const { data: genders, isLoading: isGendersLoading } = useQuery({
+		queryKey: ['genders'],
+		queryFn: () => GenderService.getAllGenders(),
+	});
+
 	const form = useForm<EmployeeData>({
 		defaultValues: {
 			first_name: employee.first_name || '',
@@ -704,9 +716,23 @@ function EditEmployeeDialog({
 												</SelectTrigger>
 											</FormControl>
 											<SelectContent>
-												<SelectItem value='Male'>Nam</SelectItem>
-												<SelectItem value='Female'>Nữ</SelectItem>
-												<SelectItem value='Other'>Khác</SelectItem>
+												{isGendersLoading ? (
+													<SelectItem value='' disabled>
+														Đang tải...
+													</SelectItem>
+												) : genders && genders.length > 0 ? (
+													genders.map((gender) => (
+														<SelectItem key={gender.name} value={gender.name}>
+															{gender.name}
+														</SelectItem>
+													))
+												) : (
+													<>
+														<SelectItem value='Male'>Nam</SelectItem>
+														<SelectItem value='Female'>Nữ</SelectItem>
+														<SelectItem value='Other'>Khác</SelectItem>
+													</>
+												)}
 											</SelectContent>
 										</Select>
 										<FormMessage />
@@ -770,13 +796,27 @@ function EditEmployeeDialog({
 												</SelectTrigger>
 											</FormControl>
 											<SelectContent>
-												<SelectItem value='Management'>Ban lãnh đạo</SelectItem>
-												<SelectItem value='HR'>Nhân sự</SelectItem>
-												<SelectItem value='IT'>CNTT</SelectItem>
-												<SelectItem value='Finance'>Tài chính</SelectItem>
-												<SelectItem value='Operations'>Vận hành</SelectItem>
-												<SelectItem value='Marketing'>Marketing</SelectItem>
-												<SelectItem value='Sales'>Kinh doanh</SelectItem>
+												{isDepartmentsLoading ? (
+													<SelectItem value='' disabled>
+														Đang tải...
+													</SelectItem>
+												) : departments && departments.length > 0 ? (
+													departments.map((dept) => (
+														<SelectItem key={dept.name} value={dept.name}>
+															{dept.name}
+														</SelectItem>
+													))
+												) : (
+													<>
+														<SelectItem value='Management'>Ban lãnh đạo</SelectItem>
+														<SelectItem value='HR'>Nhân sự</SelectItem>
+														<SelectItem value='IT'>CNTT</SelectItem>
+														<SelectItem value='Finance'>Tài chính</SelectItem>
+														<SelectItem value='Operations'>Vận hành</SelectItem>
+														<SelectItem value='Marketing'>Marketing</SelectItem>
+														<SelectItem value='Sales'>Kinh doanh</SelectItem>
+													</>
+												)}
 											</SelectContent>
 										</Select>
 										<FormMessage />
@@ -797,11 +837,9 @@ function EditEmployeeDialog({
 												</SelectTrigger>
 											</FormControl>
 											<SelectContent>
-												<SelectItem value='Full-time'>Nhân viên toàn thời gian</SelectItem>
-												<SelectItem value='Part-time'>Nhân viên bán thời gian</SelectItem>
 												<SelectItem value='Contract'>Nhà thầu</SelectItem>
 												<SelectItem value='Temporary'>Khách</SelectItem>
-												<SelectItem value='Intern'>Thực tập sinh</SelectItem>
+												<SelectItem value='Intern'>Nhân viên</SelectItem>
 											</SelectContent>
 										</Select>
 										<FormMessage />
