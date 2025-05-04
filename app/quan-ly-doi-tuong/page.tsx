@@ -16,7 +16,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Plus, MoreHorizontal, Search, Filter } from 'lucide-react';
+import { Plus, MoreHorizontal, Search, Filter, User, Mail, Phone, Briefcase, Clock, MapPin } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
 import EmployeeService, { EmployeeData } from '@/services/list-employee-service';
 import Link from 'next/link';
@@ -69,6 +69,180 @@ const TableRowSkeleton = () => (
 	</TableRow>
 );
 
+// Component mới để hiển thị chi tiết
+function EmployeeDetailsDialog({
+	open,
+	onOpenChange,
+	employee,
+	isLoading = false,
+}: {
+	open: boolean;
+	onOpenChange: (open: boolean) => void;
+	employee: any;
+	isLoading?: boolean;
+}) {
+	// Format các ngày tháng
+	const formatDate = (dateString: string | undefined) => {
+		if (!dateString) return 'Chưa có thông tin';
+		try {
+			return format(new Date(dateString), 'dd/MM/yyyy');
+		} catch (error) {
+			return 'Ngày không hợp lệ';
+		}
+	};
+
+	// Map employment types sang tiếng Việt
+	const getEmploymentTypeDisplay = (type: string | undefined) => {
+		if (!type) return 'Chưa có thông tin';
+
+		const typeMap: Record<string, string> = {
+			'Full-time': 'Nhân viên toàn thời gian',
+			'Part-time': 'Nhân viên bán thời gian',
+			Intern: 'Thực tập sinh',
+			Contract: 'Nhà thầu',
+			Temporary: 'Khách',
+		};
+
+		return typeMap[type] || type;
+	};
+
+	// Map departments sang tiếng Việt
+	const getDepartmentDisplay = (department: string | undefined) => {
+		if (!department) return 'Chưa có thông tin';
+
+		const departmentMap: Record<string, string> = {
+			Management: 'Ban lãnh đạo',
+			HR: 'Nhân sự',
+			IT: 'CNTT',
+			Finance: 'Tài chính',
+			Operations: 'Vận hành',
+			Marketing: 'Marketing',
+			Sales: 'Kinh doanh',
+		};
+
+		return departmentMap[department] || department;
+	};
+
+	// Map gender sang tiếng Việt
+	const getGenderDisplay = (gender: string | undefined) => {
+		if (!gender) return 'Chưa có thông tin';
+
+		const genderMap: Record<string, string> = {
+			Male: 'Nam',
+			Female: 'Nữ',
+			Other: 'Khác',
+		};
+
+		return genderMap[gender] || gender;
+	};
+
+	if (isLoading) {
+		return (
+			<Dialog open={open} onOpenChange={onOpenChange}>
+				<DialogContent>
+					<DialogHeader>
+						<DialogTitle>Đang tải thông tin...</DialogTitle>
+					</DialogHeader>
+					<div className='flex justify-center p-4'>
+						<div className='h-8 w-8 animate-spin rounded-full border-2 border-primary border-t-transparent'></div>
+					</div>
+				</DialogContent>
+			</Dialog>
+		);
+	}
+
+	return (
+		<Dialog open={open} onOpenChange={onOpenChange}>
+			<DialogContent className='sm:max-w-[600px]'>
+				<DialogHeader>
+					<DialogTitle>Thông tin chi tiết</DialogTitle>
+					<DialogDescription>Thông tin đầy đủ của đối tượng</DialogDescription>
+				</DialogHeader>
+
+				<div className='space-y-6'>
+					{/* Thông tin cơ bản */}
+					<div className='flex flex-col items-center space-y-4 pb-6 border-b'>
+						<div className='h-24 w-24 rounded-full bg-primary/10 flex items-center justify-center text-primary'>
+							<User className='h-12 w-12' />
+						</div>
+						<div className='text-center'>
+							<h2 className='text-2xl font-bold'>{employee.first_name || employee.employee_name}</h2>
+							<p className='text-muted-foreground'>
+								{getEmploymentTypeDisplay(employee.employment_type)} •{' '}
+								{getDepartmentDisplay(employee.department)}
+							</p>
+						</div>
+					</div>
+
+					{/* Thông tin chi tiết */}
+					<div className='grid grid-cols-1 gap-6 md:grid-cols-2'>
+						<div className='space-y-1'>
+							<div className='flex items-center text-muted-foreground'>
+								<Mail className='h-4 w-4 mr-2' />
+								<span className='text-sm'>Email</span>
+							</div>
+							<p className='font-medium'>{employee.personal_email || 'Chưa có thông tin'}</p>
+						</div>
+
+						<div className='space-y-1'>
+							<div className='flex items-center text-muted-foreground'>
+								<Phone className='h-4 w-4 mr-2' />
+								<span className='text-sm'>Số điện thoại</span>
+							</div>
+							<p className='font-medium'>{employee.cell_number || 'Chưa có thông tin'}</p>
+						</div>
+
+						<div className='space-y-1'>
+							<div className='flex items-center text-muted-foreground'>
+								<User className='h-4 w-4 mr-2' />
+								<span className='text-sm'>Giới tính</span>
+							</div>
+							<p className='font-medium'>{getGenderDisplay(employee.gender)}</p>
+						</div>
+
+						<div className='space-y-1'>
+							<div className='flex items-center text-muted-foreground'>
+								<CalendarIcon className='h-4 w-4 mr-2' />
+								<span className='text-sm'>Ngày sinh</span>
+							</div>
+							<p className='font-medium'>{formatDate(employee.date_of_birth)}</p>
+						</div>
+
+						<div className='space-y-1'>
+							<div className='flex items-center text-muted-foreground'>
+								<Briefcase className='h-4 w-4 mr-2' />
+								<span className='text-sm'>Bộ phận</span>
+							</div>
+							<p className='font-medium'>{getDepartmentDisplay(employee.department)}</p>
+						</div>
+
+						<div className='space-y-1'>
+							<div className='flex items-center text-muted-foreground'>
+								<Clock className='h-4 w-4 mr-2' />
+								<span className='text-sm'>Ngày bắt đầu</span>
+							</div>
+							<p className='font-medium'>{formatDate(employee.date_of_joining)}</p>
+						</div>
+					</div>
+
+					{/* Địa chỉ */}
+					<div className='space-y-1 pt-2 border-t'>
+						<div className='flex items-center text-muted-foreground'>
+							<MapPin className='h-4 w-4 mr-2' />
+							<span className='text-sm'>Địa chỉ</span>
+						</div>
+						<p className='font-medium'>{employee.current_address || 'Chưa có thông tin'}</p>
+					</div>
+				</div>
+
+				<DialogFooter className='mt-6'>
+					<Button onClick={() => onOpenChange(false)}>Đóng</Button>
+				</DialogFooter>
+			</DialogContent>
+		</Dialog>
+	);
+}
+
 export default function ObjectManagementPage() {
 	const [searchQuery, setSearchQuery] = useState('');
 	const [typeFilter, setTypeFilter] = useState('all');
@@ -76,6 +250,7 @@ export default function ObjectManagementPage() {
 	const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
 	const [selectedEmployee, setSelectedEmployee] = useState<any>(null);
 	const employeeService = useEmployeeService();
+	const [viewDialogOpen, setViewDialogOpen] = useState(false);
 
 	const queryClient = useQueryClient();
 	const { toast } = useToast();
@@ -93,7 +268,7 @@ export default function ObjectManagementPage() {
 	const getEmployeeQuery = useQuery({
 		queryKey: ['employee', selectedEmployee?.name],
 		queryFn: () => (selectedEmployee ? employeeService.getEmployeeByName(selectedEmployee.name) : null),
-		enabled: !!selectedEmployee && editDialogOpen,
+		enabled: !!selectedEmployee && (editDialogOpen || viewDialogOpen),
 	});
 
 	// Update employee mutation
@@ -138,6 +313,11 @@ export default function ObjectManagementPage() {
 			});
 		},
 	});
+
+	const handleViewClick = (employee: any) => {
+		setSelectedEmployee(employee);
+		setViewDialogOpen(true);
+	};
 
 	// Map employment types to display names
 	const getDisplayType = (employmentType: string) => {
@@ -327,7 +507,12 @@ export default function ObjectManagementPage() {
 															<DropdownMenuContent align='end'>
 																<DropdownMenuLabel>Hành động</DropdownMenuLabel>
 																<DropdownMenuSeparator />
-																<DropdownMenuItem>Xem chi tiết</DropdownMenuItem>
+																<DropdownMenuItem
+																	onClick={() => handleViewClick(employee)}
+																>
+																	Xem chi tiết
+																</DropdownMenuItem>
+
 																<DropdownMenuItem
 																	onClick={() => handleEditClick(employee)}
 																>
@@ -360,6 +545,15 @@ export default function ObjectManagementPage() {
 					</CardContent>
 				</Card>
 			</div>
+
+			{selectedEmployee && (
+				<EmployeeDetailsDialog
+					open={viewDialogOpen}
+					onOpenChange={setViewDialogOpen}
+					employee={getEmployeeQuery.data || selectedEmployee}
+					isLoading={getEmployeeQuery.isLoading}
+				/>
+			)}
 
 			{/* Edit Employee Dialog */}
 			{selectedEmployee && (
