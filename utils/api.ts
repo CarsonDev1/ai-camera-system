@@ -9,8 +9,9 @@ const api = axios.create({
 });
 
 api.interceptors.request.use((config) => {
-  const token = 'token c3b7cc49829279d:3a256cd3a14345d';
-  config.headers['Authorization'] = `token c3b7cc49829279d:3a256cd3a14345d`;
+  const token = 'token a6b73e5e5d8b4f4:87aaa4e073c8b9f';
+  config.headers['Authorization'] = `token a6b73e5e5d8b4f4:87aaa4e073c8b9f
+`;
   return config;
 });
 
