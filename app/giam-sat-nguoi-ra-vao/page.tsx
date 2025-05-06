@@ -29,6 +29,11 @@ import {
 	X,
 	ChevronLeft,
 	ChevronRight,
+	User,
+	Building,
+	MapPin,
+	Timer,
+	Check,
 } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import AccessStatsSummary from '@/components/access-stats';
@@ -39,6 +44,7 @@ import {
 	DialogFooter,
 	DialogHeader,
 	DialogTitle,
+	DialogClose,
 } from '@/components/ui/dialog';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { cn } from '@/lib/utils';
@@ -193,6 +199,10 @@ export default function AccessMonitoringPage() {
 	const [currentPage, setCurrentPage] = useState(1);
 	const [totalPages, setTotalPages] = useState(1);
 
+	// Detail view state
+	const [selectedRecord, setSelectedRecord] = useState<AccessRecord | null>(null);
+	const [detailDialogOpen, setDetailDialogOpen] = useState(false);
+
 	// Fetch data when component mounts or filters change
 	useEffect(() => {
 		fetchAccessRecords();
@@ -262,6 +272,29 @@ export default function AccessMonitoringPage() {
 			});
 		} finally {
 			setIsLoading(false);
+		}
+	};
+
+	// View detail of a record
+	const handleViewDetail = (record: AccessRecord) => {
+		setSelectedRecord(record);
+		setDetailDialogOpen(true);
+	};
+
+	// Get status text for detail view
+	const getStatusInfo = (record: AccessRecord | null) => {
+		if (!record) return { statusText: '', statusColor: '' };
+
+		if (record.direction === 'in') {
+			return {
+				statusText: 'Đã vào',
+				statusColor: 'text-green-600 bg-green-50',
+			};
+		} else {
+			return {
+				statusText: 'Đã ra',
+				statusColor: 'text-orange-600 bg-orange-50',
+			};
 		}
 	};
 
@@ -709,7 +742,7 @@ export default function AccessMonitoringPage() {
 										<TableHead>Thời gian</TableHead>
 										<TableHead>Vị trí</TableHead>
 										<TableHead>Hướng</TableHead>
-										<TableHead>Phương thức</TableHead>
+										{/* <TableHead>Phương thức</TableHead> */}
 										<TableHead className='w-[80px]'></TableHead>
 									</TableRow>
 								</TableHeader>
@@ -767,7 +800,7 @@ export default function AccessMonitoringPage() {
 														)}
 													</Badge>
 												</TableCell>
-												<TableCell>
+												{/* <TableCell>
 													<Badge
 														variant='outline'
 														className={
@@ -780,7 +813,7 @@ export default function AccessMonitoringPage() {
 													>
 														{record.method}
 													</Badge>
-												</TableCell>
+												</TableCell> */}
 												<TableCell>
 													<DropdownMenu>
 														<DropdownMenuTrigger asChild>
@@ -795,9 +828,10 @@ export default function AccessMonitoringPage() {
 														<DropdownMenuContent align='end'>
 															<DropdownMenuLabel>Hành động</DropdownMenuLabel>
 															<DropdownMenuSeparator />
-															<DropdownMenuItem>Xem chi tiết</DropdownMenuItem>
-															<DropdownMenuItem>Xem hình ảnh</DropdownMenuItem>
-															<DropdownMenuItem>Xem hồ sơ</DropdownMenuItem>
+															<DropdownMenuItem onClick={() => handleViewDetail(record)}>
+																<Eye className='h-4 w-4 mr-2' />
+																Xem chi tiết
+															</DropdownMenuItem>
 														</DropdownMenuContent>
 													</DropdownMenu>
 												</TableCell>
@@ -1039,6 +1073,113 @@ export default function AccessMonitoringPage() {
 							Hủy
 						</Button>
 						<Button onClick={handleApplySingleDateFilter}>Áp dụng</Button>
+					</DialogFooter>
+				</DialogContent>
+			</Dialog>
+
+			{/* Detail Dialog */}
+			<Dialog open={detailDialogOpen} onOpenChange={setDetailDialogOpen}>
+				<DialogContent className='sm:max-w-[500px]'>
+					<DialogHeader>
+						<DialogTitle>Chi tiết hoạt động ra vào</DialogTitle>
+						<DialogDescription>Thông tin chi tiết về hoạt động ra vào của nhân viên</DialogDescription>
+					</DialogHeader>
+
+					{selectedRecord && (
+						<div className='space-y-6'>
+							{/* Status Badge */}
+							<div
+								className={`inline-flex items-center px-3 py-1 rounded-full ${
+									getStatusInfo(selectedRecord).statusColor
+								}`}
+							>
+								<Check className='h-4 w-4 mr-2' />
+								<span className='font-medium'>{getStatusInfo(selectedRecord).statusText}</span>
+							</div>
+
+							{/* Employee Info */}
+							<div className='space-y-4'>
+								<div className='flex items-center'>
+									<div className='h-16 w-16 rounded-full bg-gray-100 flex items-center justify-center'>
+										<User className='h-8 w-8 text-gray-500' />
+									</div>
+									<div className='ml-4'>
+										<h3 className='text-lg font-medium'>{selectedRecord.name}</h3>
+										<p className='text-sm text-gray-500'>{selectedRecord.employeeId}</p>
+									</div>
+								</div>
+
+								<div className='grid grid-cols-1 md:grid-cols-2 gap-4'>
+									<div className='space-y-2'>
+										<div className='text-sm text-gray-500'>Bộ phận</div>
+										<div className='flex items-center'>
+											<Building className='h-4 w-4 mr-2 text-gray-500' />
+											<span>{selectedRecord.department}</span>
+										</div>
+									</div>
+
+									<div className='space-y-2'>
+										<div className='text-sm text-gray-500'>Vị trí</div>
+										<div className='flex items-center'>
+											<MapPin className='h-4 w-4 mr-2 text-gray-500' />
+											<span>{selectedRecord.location}</span>
+										</div>
+									</div>
+
+									<div className='space-y-2'>
+										<div className='text-sm text-gray-500'>Thời gian</div>
+										<div className='flex items-center'>
+											<Clock className='h-4 w-4 mr-2 text-gray-500' />
+											<span>{selectedRecord.time}</span>
+										</div>
+									</div>
+
+									<div className='space-y-2'>
+										<div className='text-sm text-gray-500'>Phương thức</div>
+										{/* <div className='flex items-center'>
+											<Timer className='h-4 w-4 mr-2 text-gray-500' />
+											<span>{selectedRecord.method}</span>
+										</div> */}
+									</div>
+								</div>
+							</div>
+
+							{/* Additional Info */}
+							{/* <div className='rounded-md border p-4 bg-gray-50'>
+								<h4 className='text-sm font-medium mb-2'>Thông tin bổ sung</h4>
+								<div className='grid grid-cols-2 gap-4 text-sm'>
+									<div>
+										<span className='text-gray-500'>Trạng thái:</span> Bình thường
+									</div>
+									<div>
+										<span className='text-gray-500'>Thiết bị:</span> Terminal A1
+									</div>
+									<div>
+										<span className='text-gray-500'>Ghi chú:</span> Không có
+									</div>
+								</div>
+							</div> */}
+						</div>
+					)}
+
+					<DialogFooter className='flex justify-between'>
+						{/* <Button
+							variant='outline'
+							className='gap-2'
+							onClick={() => {
+								// Logic to print report
+								toast({
+									title: 'Đang in báo cáo',
+									description: 'Báo cáo đang được gửi đến máy in...',
+								});
+							}}
+						>
+							<Download className='h-4 w-4' />
+							Xuất báo cáo
+						</Button> */}
+						<DialogClose asChild>
+							<Button>Đóng</Button>
+						</DialogClose>
 					</DialogFooter>
 				</DialogContent>
 			</Dialog>
