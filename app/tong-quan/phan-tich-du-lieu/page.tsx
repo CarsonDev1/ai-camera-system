@@ -27,7 +27,6 @@ import {
 	AlertCircle,
 } from 'lucide-react';
 import { DashboardHeader } from '@/components/dashboard-header';
-import { SafetyComplianceChart } from '@/components/safety-compliance-chart';
 import { SecurityRiskChart } from '@/components/security-risk-chart';
 import { TimeComplianceChart } from '@/components/time-compliance-chart';
 import PPEComplianceCard from '@/components/compliance-card';
@@ -39,6 +38,9 @@ import EarlyLeaveCard from '@/components/leave-card';
 import TopTimeViolatorsComponent from '@/components/top-violators';
 import IntrusionStatsComponent from '@/components/intrusion-state';
 import SecurityAlertComponent from '@/components/security-alert';
+import { SafetyComplianceChart } from '@/components/safety-compliance-chart';
+import TopViolationLocationsComponent from '@/components/top-violation';
+import DepartmentComplianceCard from '@/components/depart-compliance';
 
 export default function DataAnalysisPage() {
 	return (
@@ -79,34 +81,8 @@ export default function DataAnalysisPage() {
 						</div>
 
 						<Card>
-							<CardHeader className='pb-2'>
-								<div className='flex items-center justify-between'>
-									<div>
-										<CardTitle>Thống kê vi phạm an toàn theo thời gian</CardTitle>
-										<CardDescription>
-											Phân tích xu hướng vi phạm theo ngày/tuần/tháng
-										</CardDescription>
-									</div>
-									<div className='flex items-center space-x-2'>
-										<Button variant='outline' size='sm'>
-											<Calendar className='h-4 w-4 mr-2' />
-											Ngày
-										</Button>
-										<Button variant='outline' size='sm'>
-											<CalendarDays className='h-4 w-4 mr-2' />
-											Tuần
-										</Button>
-										<Button variant='outline' size='sm' className='bg-blue-50'>
-											<CalendarRange className='h-4 w-4 mr-2' />
-											Tháng
-										</Button>
-									</div>
-								</div>
-							</CardHeader>
 							<CardContent>
-								<div className='pt-4'>
-									<SafetyComplianceChart />
-								</div>
+								<SafetyComplianceChart />
 							</CardContent>
 						</Card>
 
@@ -116,59 +92,7 @@ export default function DataAnalysisPage() {
 							</Card>
 
 							<Card>
-								<CardHeader>
-									<CardTitle>Top 5 khu vực vi phạm nhiều nhất</CardTitle>
-									<CardDescription>Dựa trên số lượng vi phạm tháng này</CardDescription>
-								</CardHeader>
-								<CardContent>
-									<div className='space-y-4'>
-										<div className='space-y-2'>
-											<div className='flex items-center justify-between'>
-												<span className='text-sm font-medium'>Khu vực sản xuất A</span>
-												<span className='text-sm font-medium'>12 vi phạm</span>
-											</div>
-											<Progress value={100} className='h-2 bg-red-100'>
-												<div className='h-full bg-red-600 rounded-sm' />
-											</Progress>
-										</div>
-										<div className='space-y-2'>
-											<div className='flex items-center justify-between'>
-												<span className='text-sm font-medium'>Khu vực kho hàng</span>
-												<span className='text-sm font-medium'>8 vi phạm</span>
-											</div>
-											<Progress value={67} className='h-2 bg-red-100'>
-												<div className='h-full bg-red-600 rounded-sm' />
-											</Progress>
-										</div>
-										<div className='space-y-2'>
-											<div className='flex items-center justify-between'>
-												<span className='text-sm font-medium'>Khu vực sản xuất B</span>
-												<span className='text-sm font-medium'>6 vi phạm</span>
-											</div>
-											<Progress value={50} className='h-2 bg-red-100'>
-												<div className='h-full bg-red-600 rounded-sm' />
-											</Progress>
-										</div>
-										<div className='space-y-2'>
-											<div className='flex items-center justify-between'>
-												<span className='text-sm font-medium'>Khu vực bảo trì</span>
-												<span className='text-sm font-medium'>4 vi phạm</span>
-											</div>
-											<Progress value={33} className='h-2 bg-red-100'>
-												<div className='h-full bg-red-600 rounded-sm' />
-											</Progress>
-										</div>
-										<div className='space-y-2'>
-											<div className='flex items-center justify-between'>
-												<span className='text-sm font-medium'>Khu vực văn phòng</span>
-												<span className='text-sm font-medium'>2 vi phạm</span>
-											</div>
-											<Progress value={17} className='h-2 bg-red-100'>
-												<div className='h-full bg-red-600 rounded-sm' />
-											</Progress>
-										</div>
-									</div>
-								</CardContent>
+								<TopViolationLocationsComponent />
 							</Card>
 						</div>
 
@@ -255,52 +179,7 @@ export default function DataAnalysisPage() {
 										<TopTimeViolatorsComponent />
 									</Card>
 
-									<Card>
-										<CardHeader>
-											<CardTitle>Tỷ lệ tuân thủ giờ giấc theo bộ phận</CardTitle>
-											<CardDescription>So sánh tỷ lệ tuân thủ giữa các bộ phận</CardDescription>
-										</CardHeader>
-										<CardContent>
-											<div className='space-y-4'>
-												<div className='space-y-2'>
-													<div className='flex items-center justify-between'>
-														<span className='text-sm font-medium'>Bộ phận sản xuất A</span>
-														<span className='text-sm font-medium'>95%</span>
-													</div>
-													<Progress value={95} className='h-2 bg-green-100'>
-														<div className='h-full bg-green-600 rounded-sm' />
-													</Progress>
-												</div>
-												<div className='space-y-2'>
-													<div className='flex items-center justify-between'>
-														<span className='text-sm font-medium'>Bộ phận sản xuất B</span>
-														<span className='text-sm font-medium'>87%</span>
-													</div>
-													<Progress value={87} className='h-2 bg-green-100'>
-														<div className='h-full bg-green-600 rounded-sm' />
-													</Progress>
-												</div>
-												<div className='space-y-2'>
-													<div className='flex items-center justify-between'>
-														<span className='text-sm font-medium'>Bộ phận kho vận</span>
-														<span className='text-sm font-medium'>75%</span>
-													</div>
-													<Progress value={75} className='h-2 bg-yellow-100'>
-														<div className='h-full bg-yellow-600 rounded-sm' />
-													</Progress>
-												</div>
-												<div className='space-y-2'>
-													<div className='flex items-center justify-between'>
-														<span className='text-sm font-medium'>Bộ phận bảo trì</span>
-														<span className='text-sm font-medium'>68%</span>
-													</div>
-													<Progress value={68} className='h-2 bg-red-100'>
-														<div className='h-full bg-red-600 rounded-sm' />
-													</Progress>
-												</div>
-											</div>
-										</CardContent>
-									</Card>
+									<DepartmentComplianceCard />
 								</div>
 
 								<Card className='opacity-50'>

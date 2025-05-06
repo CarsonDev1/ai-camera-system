@@ -29,6 +29,7 @@ import {
 	MapPin,
 	Trash2,
 } from 'lucide-react';
+import NotificationOverviewCards from '@/components/notification-overview';
 
 export default function NotificationsPage() {
 	// Dữ liệu mẫu cho bảng
@@ -116,57 +117,7 @@ export default function NotificationsPage() {
 				</div>
 
 				<div className='grid grid-cols-1 md:grid-cols-3 gap-4'>
-					<Card>
-						<CardContent className='p-6'>
-							<div className='flex items-center justify-between'>
-								<div>
-									<p className='text-sm font-medium text-muted-foreground mb-1'>Tổng số thông báo</p>
-									<div className='flex items-baseline gap-2'>
-										<h2 className='text-3xl font-bold'>56</h2>
-										<span className='text-xs font-medium text-green-500'>+8</span>
-									</div>
-									<p className='text-xs text-muted-foreground mt-1'>Hôm nay</p>
-								</div>
-								<div className='h-12 w-12 bg-blue-100 rounded-full flex items-center justify-center text-blue-600'>
-									<Bell className='h-6 w-6' />
-								</div>
-							</div>
-						</CardContent>
-					</Card>
-					<Card>
-						<CardContent className='p-6'>
-							<div className='flex items-center justify-between'>
-								<div>
-									<p className='text-sm font-medium text-muted-foreground mb-1'>Chưa xử lý</p>
-									<div className='flex items-baseline gap-2'>
-										<h2 className='text-3xl font-bold'>12</h2>
-										<span className='text-xs font-medium text-red-500'>+5</span>
-									</div>
-									<p className='text-xs text-muted-foreground mt-1'>Cần xử lý</p>
-								</div>
-								<div className='h-12 w-12 bg-red-100 rounded-full flex items-center justify-center text-red-600'>
-									<AlertTriangle className='h-6 w-6' />
-								</div>
-							</div>
-						</CardContent>
-					</Card>
-					<Card>
-						<CardContent className='p-6'>
-							<div className='flex items-center justify-between'>
-								<div>
-									<p className='text-sm font-medium text-muted-foreground mb-1'>Đã xử lý</p>
-									<div className='flex items-baseline gap-2'>
-										<h2 className='text-3xl font-bold'>32</h2>
-										<span className='text-xs font-medium text-yellow-500'>15</span>
-									</div>
-									<p className='text-xs text-muted-foreground mt-1'>Hôm nay</p>
-								</div>
-								<div className='h-12 w-12 bg-yellow-100 rounded-full flex items-center justify-center text-yellow-600'>
-									<Bell className='h-6 w-6' />
-								</div>
-							</div>
-						</CardContent>
-					</Card>
+					<NotificationOverviewCards />
 				</div>
 
 				<Card>
