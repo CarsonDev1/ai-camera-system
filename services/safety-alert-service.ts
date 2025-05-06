@@ -21,11 +21,20 @@ export interface SafetyAlertsResponse {
 
 const SafetyAlertsService = {
   /**
-   * Fetch all safety alerts from the API
+   * Fetch safety alerts from the API with optional pagination
+   * @param page Page number (optional)
+   * @param pageLength Number of records per page (optional)
    * @returns Promise with array of safety alerts
    */
-  getSafetyAlerts: async (): Promise<SafetyAlert[]> => {
-    const response = await api.get<SafetyAlertsResponse>('/method/fire_alarm_app.custom_api.dashboard_api.get_atld_alerts_with_employee');
+  getSafetyAlerts: async (page?: number, pageLength?: number): Promise<SafetyAlert[]> => {
+    let url = '/method/fire_alarm_app.custom_api.dashboard_api.get_atld_alerts_with_employee';
+
+    // Add pagination parameters if provided
+    if (page !== undefined && pageLength !== undefined) {
+      url += `?page=${page}&page_length=${pageLength}`;
+    }
+
+    const response = await api.get<SafetyAlertsResponse>(url);
     return response.data.message.data;
   },
 

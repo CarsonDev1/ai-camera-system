@@ -14,7 +14,7 @@ import {
 	DropdownMenuSeparator,
 	DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { Activity, AlertTriangle, Clock, UserCheck, MoreHorizontal } from 'lucide-react';
+import { Activity, AlertTriangle, Clock, UserCheck, MoreHorizontal, ChevronLeft, ChevronRight } from 'lucide-react';
 import SafetyAlertsService, { SafetyAlert } from '@/services/safety-alert-service';
 
 // Stats Cards Component - Shows safety alerts statistics
@@ -122,14 +122,43 @@ export const SafetyAlertsTable = ({
 	searchQuery?: string;
 	violationTypeFilter?: string;
 }) => {
+	// Add pagination state
+	const [currentPage, setCurrentPage] = useState(1);
+	const [pageSize, setPageSize] = useState(5);
+	const [totalItems, setTotalItems] = useState(0);
+
+	// Use the modified query with pagination
 	const {
 		data: safetyAlerts,
 		isLoading: isLoadingAlerts,
 		error: alertsError,
+		refetch,
 	} = useQuery({
-		queryKey: ['safetyAlerts'],
+		queryKey: ['safetyAlerts', currentPage, pageSize],
+		queryFn: () => SafetyAlertsService.getSafetyAlerts(currentPage, pageSize),
+	});
+
+	// Fetch total items count for pagination
+	const { data: allAlerts } = useQuery({
+		queryKey: ['allSafetyAlerts'],
 		queryFn: () => SafetyAlertsService.getSafetyAlerts(),
 	});
+
+	// Update total items when allAlerts changes
+	useEffect(() => {
+		if (allAlerts) {
+			setTotalItems(allAlerts.length);
+		}
+	}, [allAlerts]);
+
+	// Calculate total pages
+	const totalPages = Math.ceil(totalItems / pageSize);
+
+	// Handle page change
+	const handlePageChange = (page: number) => {
+		if (page < 1 || page > totalPages) return;
+		setCurrentPage(page);
+	};
 
 	// Filter safety alerts based on search and filter criteria
 	const filteredAlerts = safetyAlerts?.filter((alert) => {
@@ -156,6 +185,15 @@ export const SafetyAlertsTable = ({
 
 		return matchesSearch && matchesType;
 	});
+
+	// useEffect to refetch when filters change
+	useEffect(() => {
+		if (searchQuery || violationTypeFilter !== 'all') {
+			// When filtering, we should reset to page 1
+			setCurrentPage(1);
+		}
+		refetch();
+	}, [searchQuery, violationTypeFilter, refetch]);
 
 	// Get severity level based on violation type
 	const getSeverityFromViolationType = (type: string): 'high' | 'medium' | 'low' => {
@@ -193,141 +231,210 @@ export const SafetyAlertsTable = ({
 	// Render loading skeletons
 	const renderAlertSkeletons = () => (
 		<>
-			{[1, 2, 3, 4, 5].map((i) => (
-				<TableRow key={`skeleton-${i}`}>
-					<TableCell>
-						<div className='flex items-center gap-2'>
-							<div className='h-2 w-2 bg-gray-200 rounded-full animate-pulse'></div>
+			{Array(pageSize)
+				.fill(0)
+				.map((_, i) => (
+					<TableRow key={`skeleton-${i}`}>
+						<TableCell>
+							<div className='flex items-center gap-2'>
+								<div className='h-2 w-2 bg-gray-200 rounded-full animate-pulse'></div>
+								<div className='h-4 w-32 bg-gray-200 rounded animate-pulse'></div>
+							</div>
+						</TableCell>
+						<TableCell>
 							<div className='h-4 w-32 bg-gray-200 rounded animate-pulse'></div>
-						</div>
-					</TableCell>
-					<TableCell>
-						<div className='h-4 w-32 bg-gray-200 rounded animate-pulse'></div>
-					</TableCell>
-					<TableCell>
-						<div className='h-4 w-32 bg-gray-200 rounded animate-pulse'></div>
-					</TableCell>
-					<TableCell>
-						<div className='h-4 w-24 bg-gray-200 rounded animate-pulse'></div>
-					</TableCell>
-					<TableCell>
-						<div className='h-6 w-20 bg-gray-200 rounded-full animate-pulse'></div>
-					</TableCell>
-					<TableCell>
-						<div className='h-8 w-8 bg-gray-200 rounded animate-pulse'></div>
-					</TableCell>
-				</TableRow>
-			))}
+						</TableCell>
+						<TableCell>
+							<div className='h-4 w-32 bg-gray-200 rounded animate-pulse'></div>
+						</TableCell>
+						<TableCell>
+							<div className='h-4 w-24 bg-gray-200 rounded animate-pulse'></div>
+						</TableCell>
+						<TableCell>
+							<div className='h-6 w-20 bg-gray-200 rounded-full animate-pulse'></div>
+						</TableCell>
+						<TableCell>
+							<div className='h-8 w-8 bg-gray-200 rounded animate-pulse'></div>
+						</TableCell>
+					</TableRow>
+				))}
 		</>
 	);
 
-	return (
-		<Table>
-			<TableHeader>
-				<TableRow>
-					<TableHead>Loại vi phạm</TableHead>
-					<TableHead>Vị trí</TableHead>
-					<TableHead>Thời gian</TableHead>
-					<TableHead>Đối tượng</TableHead>
-					<TableHead>Trạng thái</TableHead>
-					<TableHead className='w-[80px]'></TableHead>
-				</TableRow>
-			</TableHeader>
+	// Render page numbers
+	const renderPageNumbers = () => {
+		if (totalPages <= 1) return null;
 
-			<TableBody>
-				{isLoadingAlerts ? (
-					// Show skeleton loading state
-					renderAlertSkeletons()
-				) : alertsError ? (
-					// Show error state
+		const pages = [];
+		const maxVisiblePages = 5;
+
+		let startPage = Math.max(1, currentPage - Math.floor(maxVisiblePages / 2));
+		let endPage = Math.min(totalPages, startPage + maxVisiblePages - 1);
+
+		// Adjust start page if we're showing less than maxVisiblePages
+		if (endPage - startPage + 1 < maxVisiblePages) {
+			startPage = Math.max(1, endPage - maxVisiblePages + 1);
+		}
+
+		for (let i = startPage; i <= endPage; i++) {
+			pages.push(
+				<Button
+					key={i}
+					variant={i === currentPage ? 'default' : 'outline'}
+					size='sm'
+					onClick={() => handlePageChange(i)}
+					className='w-8 h-8 p-0'
+				>
+					{i}
+				</Button>
+			);
+		}
+
+		return <div className='flex gap-1'>{pages}</div>;
+	};
+
+	return (
+		<div className='flex flex-col'>
+			<Table>
+				<TableHeader>
 					<TableRow>
-						<TableCell colSpan={6} className='h-24 text-center'>
-							<div className='flex flex-col items-center justify-center py-4'>
-								<AlertTriangle className='h-8 w-8 text-red-500 mb-2' />
-								<div className='text-sm font-medium'>Đã xảy ra lỗi</div>
-								<div className='text-xs text-muted-foreground'>
-									Không thể tải dữ liệu vi phạm an toàn lao động. Vui lòng thử lại sau.
-								</div>
-							</div>
-						</TableCell>
+						<TableHead>Loại vi phạm</TableHead>
+						<TableHead>Vị trí</TableHead>
+						<TableHead>Thời gian</TableHead>
+						<TableHead>Đối tượng</TableHead>
+						<TableHead>Trạng thái</TableHead>
+						<TableHead className='w-[80px]'></TableHead>
 					</TableRow>
-				) : filteredAlerts && filteredAlerts.length > 0 ? (
-					// Show actual data
-					filteredAlerts.map((alert: SafetyAlert, index) => {
-						const severity = getSeverityFromViolationType(alert.loai_vi_pham);
-						return (
-							<TableRow key={alert.name || `alert-${index}`}>
-								<TableCell>
-									<div className='flex items-center gap-2'>
-										<div
-											className={`h-2 w-2 rounded-full ${
-												severity === 'high'
-													? 'bg-red-500'
-													: severity === 'medium'
-													? 'bg-yellow-500'
-													: 'bg-blue-500'
-											}`}
-										/>
-										<span>{alert.loai_vi_pham}</span>
+				</TableHeader>
+
+				<TableBody>
+					{isLoadingAlerts ? (
+						// Show skeleton loading state
+						renderAlertSkeletons()
+					) : alertsError ? (
+						// Show error state
+						<TableRow>
+							<TableCell colSpan={6} className='h-24 text-center'>
+								<div className='flex flex-col items-center justify-center py-4'>
+									<AlertTriangle className='h-8 w-8 text-red-500 mb-2' />
+									<div className='text-sm font-medium'>Đã xảy ra lỗi</div>
+									<div className='text-xs text-muted-foreground'>
+										Không thể tải dữ liệu vi phạm an toàn lao động. Vui lòng thử lại sau.
 									</div>
-								</TableCell>
-								<TableCell>{alert.khu_vuc}</TableCell>
-								<TableCell>{formatTimestamp(alert.timestamp)}</TableCell>
-								<TableCell>{alert.employee_name || 'Không xác định'}</TableCell>
-								<TableCell>
-									<Badge
-										variant={
-											alert.trang_thai === 'Chưa xử lý'
-												? 'destructive'
-												: alert.trang_thai === 'Đang xử lý'
-												? 'default'
-												: 'outline'
-										}
-									>
-										{alert.trang_thai}
-									</Badge>
-								</TableCell>
-								<TableCell>
-									<DropdownMenu>
-										<DropdownMenuTrigger asChild>
-											<Button variant='ghost' className='h-8 w-8 p-0' aria-label='Mở menu'>
-												<MoreHorizontal className='h-4 w-4' />
-											</Button>
-										</DropdownMenuTrigger>
-										<DropdownMenuContent align='end'>
-											<DropdownMenuLabel>Hành động</DropdownMenuLabel>
-											<DropdownMenuSeparator />
-											<DropdownMenuItem>Xem chi tiết</DropdownMenuItem>
-											<DropdownMenuItem>
-												{alert.trang_thai === 'Chưa xử lý'
-													? 'Xác nhận vi phạm'
-													: 'Đánh dấu chưa xử lý'}
-											</DropdownMenuItem>
-											<DropdownMenuItem>Bác bỏ vi phạm</DropdownMenuItem>
-										</DropdownMenuContent>
-									</DropdownMenu>
-								</TableCell>
-							</TableRow>
-						);
-					})
-				) : (
-					// Show empty state
-					<TableRow>
-						<TableCell colSpan={6} className='h-24 text-center'>
-							<div className='flex flex-col items-center justify-center py-4'>
-								<AlertTriangle className='h-8 w-8 text-muted-foreground opacity-40 mb-2' />
-								<div className='text-sm font-medium text-muted-foreground'>Không có vi phạm</div>
-								<div className='text-xs text-muted-foreground'>
-									{searchQuery || violationTypeFilter !== 'all'
-										? 'Không tìm thấy vi phạm phù hợp với điều kiện lọc'
-										: 'Hiện không có vi phạm an toàn lao động nào được ghi nhận'}
 								</div>
-							</div>
-						</TableCell>
-					</TableRow>
-				)}
-			</TableBody>
-		</Table>
+							</TableCell>
+						</TableRow>
+					) : filteredAlerts && filteredAlerts.length > 0 ? (
+						// Show actual data
+						filteredAlerts.map((alert: SafetyAlert, index) => {
+							const severity = getSeverityFromViolationType(alert.loai_vi_pham);
+							return (
+								<TableRow key={alert.name || `alert-${index}`}>
+									<TableCell>
+										<div className='flex items-center gap-2'>
+											<div
+												className={`h-2 w-2 rounded-full ${
+													severity === 'high'
+														? 'bg-red-500'
+														: severity === 'medium'
+														? 'bg-yellow-500'
+														: 'bg-blue-500'
+												}`}
+											/>
+											<span>{alert.loai_vi_pham}</span>
+										</div>
+									</TableCell>
+									<TableCell>{alert.khu_vuc}</TableCell>
+									<TableCell>{formatTimestamp(alert.timestamp)}</TableCell>
+									<TableCell>{alert.employee_name || 'Không xác định'}</TableCell>
+									<TableCell>
+										<Badge
+											variant={
+												alert.trang_thai === 'Chưa xử lý'
+													? 'destructive'
+													: alert.trang_thai === 'Đang xử lý'
+													? 'default'
+													: 'outline'
+											}
+										>
+											{alert.trang_thai}
+										</Badge>
+									</TableCell>
+									<TableCell>
+										<DropdownMenu>
+											<DropdownMenuTrigger asChild>
+												<Button variant='ghost' className='h-8 w-8 p-0' aria-label='Mở menu'>
+													<MoreHorizontal className='h-4 w-4' />
+												</Button>
+											</DropdownMenuTrigger>
+											<DropdownMenuContent align='end'>
+												<DropdownMenuLabel>Hành động</DropdownMenuLabel>
+												<DropdownMenuSeparator />
+												<DropdownMenuItem>Xem chi tiết</DropdownMenuItem>
+												<DropdownMenuItem>
+													{alert.trang_thai === 'Chưa xử lý'
+														? 'Xác nhận vi phạm'
+														: 'Đánh dấu chưa xử lý'}
+												</DropdownMenuItem>
+												<DropdownMenuItem>Bác bỏ vi phạm</DropdownMenuItem>
+											</DropdownMenuContent>
+										</DropdownMenu>
+									</TableCell>
+								</TableRow>
+							);
+						})
+					) : (
+						// Show empty state
+						<TableRow>
+							<TableCell colSpan={6} className='h-24 text-center'>
+								<div className='flex flex-col items-center justify-center py-4'>
+									<AlertTriangle className='h-8 w-8 text-muted-foreground opacity-40 mb-2' />
+									<div className='text-sm font-medium text-muted-foreground'>Không có vi phạm</div>
+									<div className='text-xs text-muted-foreground'>
+										{searchQuery || violationTypeFilter !== 'all'
+											? 'Không tìm thấy vi phạm phù hợp với điều kiện lọc'
+											: 'Hiện không có vi phạm an toàn lao động nào được ghi nhận'}
+									</div>
+								</div>
+							</TableCell>
+						</TableRow>
+					)}
+				</TableBody>
+			</Table>
+
+			{/* Pagination Controls - Always show pagination when we have data */}
+			{!isLoadingAlerts && !alertsError && (
+				<div className='flex items-center justify-between space-x-2 py-4 px-2'>
+					<div className='text-sm text-muted-foreground'>
+						{totalItems > 0 ? (
+							<>
+								Hiển thị {(currentPage - 1) * pageSize + 1}-
+								{Math.min(currentPage * pageSize, totalItems)} trong số {totalItems} vi phạm
+							</>
+						) : (
+							<>Không có vi phạm</>
+						)}
+					</div>
+					<div className='flex items-center space-x-2'>{renderPageNumbers()}</div>
+					<div className='flex items-center space-x-2'>
+						<select
+							className='h-8 rounded-md border border-input bg-background px-2 text-xs'
+							value={pageSize}
+							onChange={(e) => {
+								setPageSize(Number(e.target.value));
+								setCurrentPage(1); // Reset to first page when changing page size
+							}}
+						>
+							{[5, 10, 20, 50].map((size) => (
+								<option key={size} value={size}>
+									{size} / trang
+								</option>
+							))}
+						</select>
+					</div>
+				</div>
+			)}
+		</div>
 	);
 };
 
