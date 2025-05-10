@@ -910,7 +910,7 @@ export default function AccessMonitoringPage() {
 					</CardContent>
 				</Card>
 
-				<div className='grid grid-cols-1 md:grid-cols-2 gap-6'>
+				<div className='grid grid-cols-1 md:grid-cols-1 gap-6'>
 					<EntryExitTimeChart />
 
 					<LocationDistributionCard accessRecords={accessRecords} />

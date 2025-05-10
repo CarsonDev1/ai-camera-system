@@ -24,7 +24,7 @@ const BehaviorAlertsService = {
    * Fetch all behavior alerts from the API
    * @returns Promise with array of behavior alerts
    */
-  getBehaviorAlerts: async (): Promise<BehaviorAlert[]> => {
+  getBehaviorAlerts: async (p0: number, p1: number, p2: boolean): Promise<BehaviorAlert[]> => {
     const response = await api.get<BehaviorAlertsResponse>('/method/fire_alarm_app.custom_api.dashboard_api.get_behavior_alerts_with_employee');
     return response.data.message.data;
   },

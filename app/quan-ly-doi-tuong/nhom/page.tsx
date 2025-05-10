@@ -18,6 +18,7 @@ import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { UsersRound, MoreHorizontal, Plus, Search, UserPlus } from 'lucide-react';
 import EmployeeGroupsService from '@/services/employee-group-service';
+import Link from 'next/link';
 
 export default function GroupManagementPage() {
 	const [searchQuery, setSearchQuery] = useState('');
@@ -132,10 +133,12 @@ export default function GroupManagementPage() {
 												<TableCell>{formatDate(group.created_date)}</TableCell>
 												<TableCell>
 													<div className='flex items-center gap-2'>
-														<Button variant='outline' size='sm'>
-															<UserPlus className='h-4 w-4 mr-2' />
-															Thêm thành viên
-														</Button>
+														<Link href='/quan-ly-doi-tuong/them-moi'>
+															<Button variant='outline' size='sm'>
+																<UserPlus className='h-4 w-4 mr-2' />
+																Thêm thành viên
+															</Button>
+														</Link>
 													</div>
 												</TableCell>
 												<TableCell>
@@ -176,7 +179,7 @@ export default function GroupManagementPage() {
 					</CardContent>
 				</Card>
 
-				<div className='grid grid-cols-1 md:grid-cols-2 gap-6'>
+				{/* <div className='grid grid-cols-1 md:grid-cols-2 gap-6'>
 					<Card>
 						<CardHeader>
 							<CardTitle>Thống kê nhóm</CardTitle>
@@ -246,7 +249,7 @@ export default function GroupManagementPage() {
 							</div>
 						</CardContent>
 					</Card>
-				</div>
+				</div> */}
 			</div>
 		</div>
 	);

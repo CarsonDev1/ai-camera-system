@@ -36,6 +36,10 @@ import {
 } from 'lucide-react';
 import { RecentViolations, SafetyAlertsStats, SafetyAlertsTable, ViolationStatsChart } from '@/components/safety-alert';
 import { BehaviorAlertsStats, BehaviorAlertsTable, BehaviorTypeChart } from '@/components/behavior-alert';
+import { toast } from '@/components/ui/use-toast';
+import { useQueryClient } from '@tanstack/react-query';
+import SafetyAlertsService from '@/services/safety-alert-service';
+import BehaviorAlertsService from '@/services/behavior-alert-service';
 
 export default function SafetyMonitoringPage() {
 	const searchParams = useSearchParams();
@@ -45,6 +49,10 @@ export default function SafetyMonitoringPage() {
 	const [searchQuery, setSearchQuery] = useState('');
 	const [violationTypeFilter, setViolationTypeFilter] = useState('all');
 	const [statusFilter, setStatusFilter] = useState('all');
+	const [isLoading, setIsLoading] = useState(false);
+
+	// Get the React Query client for data invalidation
+	const queryClient = useQueryClient();
 
 	useEffect(() => {
 		if (tabParam !== activeTab) {
@@ -67,6 +75,103 @@ export default function SafetyMonitoringPage() {
 		if (tab !== activeTab) {
 			setIsAnimating(true);
 			setActiveTab(tab);
+		}
+	};
+
+	// Handle refresh functionality
+	const handleRefresh = async () => {
+		// Set loading state to true immediately
+		setIsLoading(true);
+
+		try {
+			// Show toast notification for refresh start
+			toast({
+				title: 'Đang làm mới...',
+				description: 'Đang tải lại dữ liệu báo cáo.',
+			});
+
+			// Force React Query to fetch new stats data - the most important part for the statistics cards
+			await Promise.all([
+				// Stats data for Safety tab
+				queryClient.fetchQuery({
+					queryKey: ['safetyAlerts'],
+					queryFn: () => SafetyAlertsService.getSafetyAlerts(1, 5, true),
+					staleTime: 0,
+				}),
+				queryClient.fetchQuery({
+					queryKey: ['pendingSafetyAlerts'],
+					queryFn: () => SafetyAlertsService.getPendingSafetyAlerts(),
+					staleTime: 0,
+				}),
+				queryClient.fetchQuery({
+					queryKey: ['resolvedSafetyAlerts'],
+					queryFn: () => SafetyAlertsService.getResolvedSafetyAlerts(),
+					staleTime: 0,
+				}),
+
+				// Stats data for Behavior tab
+				...(activeTab === 'giam-sat-vi-pham'
+					? [
+							queryClient.fetchQuery({
+								queryKey: ['behaviorAlerts'],
+								queryFn: () => BehaviorAlertsService.getBehaviorAlerts(1, 5, true),
+								staleTime: 0,
+							}),
+							queryClient.fetchQuery({
+								queryKey: ['pendingBehaviorAlerts'],
+								queryFn: () => BehaviorAlertsService.getPendingBehaviorAlerts(),
+								staleTime: 0,
+							}),
+							queryClient.fetchQuery({
+								queryKey: ['resolvedBehaviorAlerts'],
+								queryFn: () => BehaviorAlertsService.getResolvedBehaviorAlerts(),
+								staleTime: 0,
+							}),
+					  ]
+					: []),
+			]);
+
+			// Force the table data to refresh too
+			if (activeTab === 'bao-ho-lao-dong') {
+				// Current page data for the table
+				await queryClient.fetchQuery({
+					queryKey: ['safetyAlerts', 1, 5], // Assuming page 1 with 5 items is the default
+					queryFn: () => SafetyAlertsService.getSafetyAlerts(1, 5, true),
+					staleTime: 0,
+				});
+			} else {
+				// Current page data for the behavior alerts table
+				await queryClient.fetchQuery({
+					queryKey: ['behaviorAlerts', 1, 5], // Assuming page 1 with 5 items is the default
+					queryFn: () => BehaviorAlertsService.getBehaviorAlerts(1, 5, true),
+					staleTime: 0,
+				});
+			}
+
+			// Minimum delay to ensure the loading state is visible
+			await new Promise((resolve) => setTimeout(resolve, 500));
+
+			// Show success toast notification
+			toast({
+				title: 'Làm mới thành công',
+				description: 'Dữ liệu báo cáo đã được cập nhật.',
+			});
+
+			return true;
+		} catch (error) {
+			console.error('Error refreshing data:', error);
+
+			// Show error toast notification
+			toast({
+				title: 'Làm mới thất bại',
+				description: 'Đã xảy ra lỗi khi tải lại dữ liệu. Vui lòng thử lại sau.',
+				variant: 'destructive',
+			});
+
+			throw error;
+		} finally {
+			// Ensure loading state is set to false after everything completes
+			setIsLoading(false);
 		}
 	};
 
@@ -180,7 +285,12 @@ export default function SafetyMonitoringPage() {
 
 	return (
 		<div className='flex flex-col h-full'>
-			<DashboardHeader title='Giám sát an toàn lao động' description='Quản lý an toàn lao động và vi phạm' />
+			<DashboardHeader
+				title='Giám sát an toàn lao động'
+				description='Quản lý an toàn lao động và vi phạm'
+				onRefresh={handleRefresh}
+				isLoading={isLoading}
+			/>
 			<div className='p-6 space-y-6 flex-1'>
 				<div className='bg-background border rounded-lg overflow-hidden relative'>
 					<div className='grid grid-cols-2 relative z-10'>
@@ -285,7 +395,7 @@ export default function SafetyMonitoringPage() {
 								</CardContent>
 							</Card>
 
-							<div className='grid grid-cols-1 md:grid-cols-2 gap-6'>
+							{/* <div className='grid grid-cols-1 md:grid-cols-2 gap-6'>
 								<Card>
 									<CardHeader>
 										<CardTitle>Thống kê vi phạm</CardTitle>
@@ -305,7 +415,7 @@ export default function SafetyMonitoringPage() {
 										<RecentViolations />
 									</CardContent>
 								</Card>
-							</div>
+							</div> */}
 						</div>
 					</div>
 
@@ -393,7 +503,7 @@ export default function SafetyMonitoringPage() {
 								</CardContent>
 							</Card>
 
-							<div className='grid grid-cols-1 md:grid-cols-2 gap-6'>
+							{/* <div className='grid grid-cols-1 md:grid-cols-2 gap-6'>
 								<Card>
 									<CardHeader className='flex flex-row items-center justify-between'>
 										<div>
@@ -443,7 +553,7 @@ export default function SafetyMonitoringPage() {
 										</div>
 									</CardContent>
 								</Card>
-							</div>
+							</div> */}
 						</div>
 					</div>
 				</div>

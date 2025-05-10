@@ -131,7 +131,7 @@ export function SafetyComplianceChart() {
 	}
 
 	return (
-		<div className='h-[300px] w-full'>
+		<div className='h-[300px] w-full py-3'>
 			<div className='flex justify-between items-center'>
 				<div>
 					<CardTitle>Thống kê vi phạm an toàn theo thời gian</CardTitle>

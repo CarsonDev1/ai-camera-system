@@ -92,7 +92,7 @@ export interface EmployeeData {
 }
 
 export interface EmployeeResponse {
-  message: EmployeeData;
+  data: EmployeeData;
 }
 
 export interface Employee {
@@ -114,28 +114,36 @@ export interface EmployeeListResponse {
   data: Employee[];
 }
 
+interface PaginatedEmployeeListResponse {
+  data: Employee[];
+}
+
+interface GetEmployeesParams {
+  page?: number;
+  pageSize?: number;
+}
+
 const EmployeeService = {
-  getEmployees: async (): Promise<Employee[]> => {
-    const fields = [
-      "name",
-      "employee_name",
-      "gender",
-      "date_of_joining",
-      "custom_face_images",
-      "custom_face_images1",
-      "custom_face_images2",
-      "custom_face_images3",
-      "department",
-      "designation",
-      "employment_type",
-      "status"
-    ];
+  /**
+   * Get list of employees with pagination
+   * @param params Pagination parameters
+   * @returns Promise with list of employees
+   */
+  getEmployees: async (params?: GetEmployeesParams): Promise<Employee[]> => {
+    const pageSize = params?.pageSize || 10;
+    const page = params?.page || 1;
+    const startIndex = (page - 1) * pageSize;
 
-    const encodedFields = encodeURIComponent(JSON.stringify(fields));
-    const url = `/resource/Employee?fields=${encodedFields}`;
+    // Using the all fields selector and pagination parameters
+    const url = `/resource/Employee?fields=["*"]&limit_start=${startIndex}&limit_page_length=${pageSize}`;
 
-    const response = await api.get<EmployeeListResponse>(url);
-    return response.data.data;
+    try {
+      const response = await api.get<PaginatedEmployeeListResponse>(url);
+      return response.data.data;
+    } catch (error) {
+      console.error('Error fetching employees:', error);
+      throw error;
+    }
   },
 };
 

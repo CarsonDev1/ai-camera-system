@@ -3,6 +3,7 @@
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import { useState, useEffect } from 'react';
 import ComplianceTrendService from '@/services/compliance-trend-service';
+import { CardContent, CardDescription, CardTitle } from '@/components/ui/card';
 
 // Type for our component props
 type PeriodType = 'day' | 'week' | 'month';
@@ -89,68 +90,80 @@ export function TimeComplianceChart() {
 
 	return (
 		<div className='h-full'>
-			<div className='flex items-center space-x-2 mb-4'>
-				<button
-					onClick={() => handlePeriodChange('day')}
-					className={`px-3 py-1 text-sm rounded-md ${
-						selectedPeriod === 'day' ? 'bg-blue-100 text-blue-700' : 'bg-gray-100 text-gray-700'
-					}`}
-				>
-					Ngày
-				</button>
-				<button
-					onClick={() => handlePeriodChange('week')}
-					className={`px-3 py-1 text-sm rounded-md ${
-						selectedPeriod === 'week' ? 'bg-blue-100 text-blue-700' : 'bg-gray-100 text-gray-700'
-					}`}
-				>
-					Tuần
-				</button>
-				<button
-					onClick={() => handlePeriodChange('month')}
-					className={`px-3 py-1 text-sm rounded-md ${
-						selectedPeriod === 'month' ? 'bg-blue-100 text-blue-700' : 'bg-gray-100 text-gray-700'
-					}`}
-				>
-					Tháng
-				</button>
+			<div className='flex items-center justify-between p-4'>
+				<div>
+					<CardTitle>Xu hướng tuân thủ giờ giấc theo thời gian</CardTitle>
+					<CardDescription>Phân tích tỷ lệ đi trễ và về sớm theo tuần/tháng</CardDescription>
+				</div>
+				<div className='flex items-center space-x-2 mb-4'>
+					<button
+						onClick={() => handlePeriodChange('day')}
+						className={`px-3 py-1 text-sm rounded-md ${
+							selectedPeriod === 'day' ? 'bg-blue-100 text-blue-700' : 'bg-gray-100 text-gray-700'
+						}`}
+					>
+						Ngày
+					</button>
+					<button
+						onClick={() => handlePeriodChange('week')}
+						className={`px-3 py-1 text-sm rounded-md ${
+							selectedPeriod === 'week' ? 'bg-blue-100 text-blue-700' : 'bg-gray-100 text-gray-700'
+						}`}
+					>
+						Tuần
+					</button>
+					<button
+						onClick={() => handlePeriodChange('month')}
+						className={`px-3 py-1 text-sm rounded-md ${
+							selectedPeriod === 'month' ? 'bg-blue-100 text-blue-700' : 'bg-gray-100 text-gray-700'
+						}`}
+					>
+						Tháng
+					</button>
+				</div>
 			</div>
 
-			<ResponsiveContainer width='100%' height='85%'>
-				<LineChart
-					data={chartData}
-					margin={{
-						top: 5,
-						right: 30,
-						left: 20,
-						bottom: 5,
-					}}
-				>
-					<CartesianGrid strokeDasharray='3 3' stroke='#f0f0f0' />
-					<XAxis dataKey='name' tick={{ fontSize: 12 }} interval={'preserveStartEnd'} />
-					<YAxis tickFormatter={(value) => `${value}%`} domain={[0, 'dataMax' + 5]} tick={{ fontSize: 12 }} />
-					<Tooltip content={<CustomTooltip />} />
-					<Legend wrapperStyle={{ fontSize: '12px' }} />
-					<Line
-						type='monotone'
-						dataKey='diTre'
-						name='Tỷ lệ đi trễ'
-						stroke='#f97316'
-						strokeWidth={2}
-						dot={{ r: 4, strokeWidth: 2 }}
-						activeDot={{ r: 6 }}
-					/>
-					<Line
-						type='monotone'
-						dataKey='veSom'
-						name='Tỷ lệ về sớm'
-						stroke='#eab308'
-						strokeWidth={2}
-						dot={{ r: 4, strokeWidth: 2 }}
-						activeDot={{ r: 6 }}
-					/>
-				</LineChart>
-			</ResponsiveContainer>
+			<CardContent className='h-[300px] p-4'>
+				<ResponsiveContainer width='100%' height='85%'>
+					<LineChart
+						data={chartData}
+						margin={{
+							top: 5,
+							right: 30,
+							left: 20,
+							bottom: 5,
+						}}
+					>
+						<CartesianGrid strokeDasharray='3 3' stroke='#f0f0f0' />
+						<XAxis dataKey='name' tick={{ fontSize: 12 }} interval={'preserveStartEnd'} />
+						<YAxis
+							tickFormatter={(value) => `${value}%`}
+							domain={[0, 'dataMax' + 5]}
+							tick={{ fontSize: 12 }}
+						/>
+						<Tooltip content={<CustomTooltip />} />
+						<Legend wrapperStyle={{ fontSize: '12px' }} />
+						<Line
+							type='monotone'
+							dataKey='diTre'
+							name='Tỷ lệ đi trễ'
+							stroke='#f97316'
+							strokeWidth={2}
+							dot={{ r: 4, strokeWidth: 2 }}
+							activeDot={{ r: 6 }}
+						/>
+						<Line
+							type='monotone'
+							dataKey='veSom'
+							name='Tỷ lệ về sớm'
+							stroke='#eab308'
+							strokeWidth={2}
+							dot={{ r: 4, strokeWidth: 2 }}
+							activeDot={{ r: 6 }}
+						/>
+					</LineChart>
+				</ResponsiveContainer>
+			</CardContent>
 		</div>
 	);
 }

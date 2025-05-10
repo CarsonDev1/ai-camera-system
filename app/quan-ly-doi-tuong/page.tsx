@@ -1,10 +1,10 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { DashboardHeader } from '@/components/dashboard-header';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import {
 	DropdownMenu,
@@ -16,9 +16,26 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Plus, MoreHorizontal, Search, Filter, User, Mail, Phone, Briefcase, Clock, MapPin } from 'lucide-react';
+import { Checkbox } from '@/components/ui/checkbox';
+import {
+	Plus,
+	MoreHorizontal,
+	Search,
+	Filter as FilterIcon,
+	User,
+	Mail,
+	Phone,
+	Briefcase,
+	Clock,
+	MapPin,
+	ChevronLeft,
+	ChevronRight,
+	ChevronsLeft,
+	ChevronsRight,
+	X,
+} from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
-import EmployeeService, { EmployeeData } from '@/services/list-employee-service';
+import EmployeeService, { EmployeeData, Employee } from '@/services/list-employee-service';
 import Link from 'next/link';
 import {
 	Dialog,
@@ -49,6 +66,9 @@ import { useEmployeeService } from '@/services/create-employee-service';
 import { useToast } from '@/hooks/use-toast';
 import DepartmentService from '@/services/department-service';
 import GenderService from '@/services/gender-service';
+import Image from 'next/image';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import FileUploadService from '@/services/file-upload-service';
 
 // Skeleton component for table rows
 const TableRowSkeleton = () => (
@@ -71,7 +91,214 @@ const TableRowSkeleton = () => (
 	</TableRow>
 );
 
-// Component mới để hiển thị chi tiết
+// Advanced Filter Panel Component
+interface FilterOptions {
+	employeeTypes: {
+		[key: string]: boolean;
+	};
+	departments: {
+		[key: string]: boolean;
+	};
+}
+
+function FilterPanel({
+	isOpen,
+	onClose,
+	onApply,
+	departments,
+}: {
+	isOpen: boolean;
+	onClose: () => void;
+	onApply: (filters: FilterOptions) => void;
+	departments: any[] | undefined;
+}) {
+	const [filters, setFilters] = useState<FilterOptions>({
+		employeeTypes: {
+			'Tất cả': true,
+			'Nhân viên': false,
+			'Nhà thầu': false,
+			Khách: false,
+		},
+		departments: {
+			'Tất cả': true,
+			CNTT: false,
+			'Nhân sự': false,
+			'Tài chính': false,
+			'Kinh doanh': false,
+			Marketing: false,
+			'Vận hành': false,
+			'Ban lãnh đạo': false,
+		},
+	});
+
+	// When panel opens, initialize with departments from API if available
+	useEffect(() => {
+		if (departments && departments.length > 0 && isOpen) {
+			const deptFilters: { [key: string]: boolean } = {
+				'Tất cả': true,
+			};
+
+			departments.forEach((dept) => {
+				// Use Vietnamese name if possible
+				const deptName = getDepartmentDisplay(dept.name);
+				deptFilters[deptName] = false;
+			});
+
+			setFilters((prev) => ({
+				...prev,
+				departments: deptFilters,
+			}));
+		}
+	}, [departments, isOpen]);
+
+	// Map departments to Vietnamese
+	const getDepartmentDisplay = (department: string | undefined) => {
+		if (!department) return 'Khác';
+
+		const departmentMap: Record<string, string> = {
+			Management: 'Ban lãnh đạo',
+			HR: 'Nhân sự',
+			IT: 'CNTT',
+			Finance: 'Tài chính',
+			Operations: 'Vận hành',
+			Marketing: 'Marketing',
+			Sales: 'Kinh doanh',
+		};
+
+		return departmentMap[department] || department;
+	};
+
+	// Handle clicking on an employee type checkbox
+	const handleEmployeeTypeChange = (type: string, checked: boolean) => {
+		// If selecting "All", deselect others
+		if (type === 'Tất cả' && checked) {
+			setFilters((prev) => ({
+				...prev,
+				employeeTypes: Object.keys(prev.employeeTypes).reduce((acc, key) => {
+					acc[key] = key === 'Tất cả';
+					return acc;
+				}, {} as { [key: string]: boolean }),
+			}));
+		}
+		// If selecting a specific type, deselect "All"
+		else {
+			const newEmployeeTypes = {
+				...filters.employeeTypes,
+				[type]: checked,
+				'Tất cả': false,
+			};
+
+			// If no types are selected, reselect "All"
+			if (!Object.values(newEmployeeTypes).some((v) => v)) {
+				newEmployeeTypes['Tất cả'] = true;
+			}
+
+			setFilters((prev) => ({
+				...prev,
+				employeeTypes: newEmployeeTypes,
+			}));
+		}
+	};
+
+	// Handle clicking on a department checkbox
+	const handleDepartmentChange = (dept: string, checked: boolean) => {
+		// If selecting "All", deselect others
+		if (dept === 'Tất cả' && checked) {
+			setFilters((prev) => ({
+				...prev,
+				departments: Object.keys(prev.departments).reduce((acc, key) => {
+					acc[key] = key === 'Tất cả';
+					return acc;
+				}, {} as { [key: string]: boolean }),
+			}));
+		}
+		// If selecting a specific department, deselect "All"
+		else {
+			const newDepartments = {
+				...filters.departments,
+				[dept]: checked,
+				'Tất cả': false,
+			};
+
+			// If no departments are selected, reselect "All"
+			if (!Object.values(newDepartments).some((v) => v)) {
+				newDepartments['Tất cả'] = true;
+			}
+
+			setFilters((prev) => ({
+				...prev,
+				departments: newDepartments,
+			}));
+		}
+	};
+
+	// Handle applying filters
+	const handleApply = () => {
+		onApply(filters);
+		onClose();
+	};
+
+	if (!isOpen) return null;
+
+	return (
+		<div className='absolute top-full right-0 mt-2 z-50 bg-white dark:bg-gray-950 rounded-md border shadow-md w-72 p-4'>
+			<div className='flex justify-between items-center mb-4'>
+				<h3 className='font-medium'>Bộ lọc nâng cao</h3>
+				<Button variant='ghost' size='icon' onClick={onClose}>
+					<X className='h-4 w-4' />
+				</Button>
+			</div>
+
+			<div className='space-y-4'>
+				{/* Employee Type Filter */}
+				<div>
+					<h4 className='text-sm font-medium mb-2'>Loại</h4>
+					<div className='space-y-2'>
+						{Object.entries(filters.employeeTypes).map(([type, checked]) => (
+							<div key={type} className='flex items-center space-x-2'>
+								<Checkbox
+									id={`type-${type}`}
+									checked={checked}
+									onCheckedChange={(checked) => handleEmployeeTypeChange(type, checked === true)}
+								/>
+								<label htmlFor={`type-${type}`} className='text-sm font-normal cursor-pointer'>
+									{type}
+								</label>
+							</div>
+						))}
+					</div>
+				</div>
+
+				{/* Department Filter */}
+				<div>
+					<h4 className='text-sm font-medium mb-2'>Bộ phận</h4>
+					<div className='space-y-2 max-h-40 overflow-y-auto'>
+						{Object.entries(filters.departments).map(([dept, checked]) => (
+							<div key={dept} className='flex items-center space-x-2'>
+								<Checkbox
+									id={`dept-${dept}`}
+									checked={checked}
+									onCheckedChange={(checked) => handleDepartmentChange(dept, checked === true)}
+								/>
+								<label htmlFor={`dept-${dept}`} className='text-sm font-normal cursor-pointer'>
+									{dept}
+								</label>
+							</div>
+						))}
+					</div>
+				</div>
+			</div>
+
+			<div className='mt-4 flex justify-end'>
+				<Button size='sm' onClick={handleApply}>
+					Áp dụng
+				</Button>
+			</div>
+		</div>
+	);
+}
+
+// Component to hiển thị chi tiết
 function EmployeeDetailsDialog({
 	open,
 	onOpenChange,
@@ -165,13 +392,23 @@ function EmployeeDetailsDialog({
 					{/* Thông tin cơ bản */}
 					<div className='flex flex-col items-center space-y-4 pb-6 border-b'>
 						<div className='h-24 w-24 rounded-full bg-primary/10 flex items-center justify-center text-primary'>
-							<User className='h-12 w-12' />
+							{employee?.custom_face_images ? (
+								<Image
+									src={`https://dev4.tadalabs.vn/${employee.custom_face_images}`}
+									width={96}
+									height={96}
+									alt='avatar'
+									className='rounded-full object-cover'
+								/>
+							) : (
+								<User className='h-12 w-12' />
+							)}
 						</div>
 						<div className='text-center'>
-							<h2 className='text-2xl font-bold'>{employee.first_name || employee.employee_name}</h2>
+							<h2 className='text-2xl font-bold'>{employee?.first_name || employee?.employee_name}</h2>
 							<p className='text-muted-foreground'>
-								{getEmploymentTypeDisplay(employee.employment_type)} •{' '}
-								{getDepartmentDisplay(employee.department)}
+								{getEmploymentTypeDisplay(employee?.employment_type)} •{' '}
+								{getDepartmentDisplay(employee?.department)}
 							</p>
 						</div>
 					</div>
@@ -183,7 +420,7 @@ function EmployeeDetailsDialog({
 								<Mail className='h-4 w-4 mr-2' />
 								<span className='text-sm'>Email</span>
 							</div>
-							<p className='font-medium'>{employee.personal_email || 'Chưa có thông tin'}</p>
+							<p className='font-medium'>{employee?.personal_email || 'Chưa có thông tin'}</p>
 						</div>
 
 						<div className='space-y-1'>
@@ -191,7 +428,7 @@ function EmployeeDetailsDialog({
 								<Phone className='h-4 w-4 mr-2' />
 								<span className='text-sm'>Số điện thoại</span>
 							</div>
-							<p className='font-medium'>{employee.cell_number || 'Chưa có thông tin'}</p>
+							<p className='font-medium'>{employee?.cell_number || 'Chưa có thông tin'}</p>
 						</div>
 
 						<div className='space-y-1'>
@@ -199,7 +436,7 @@ function EmployeeDetailsDialog({
 								<User className='h-4 w-4 mr-2' />
 								<span className='text-sm'>Giới tính</span>
 							</div>
-							<p className='font-medium'>{getGenderDisplay(employee.gender)}</p>
+							<p className='font-medium'>{getGenderDisplay(employee?.gender)}</p>
 						</div>
 
 						<div className='space-y-1'>
@@ -207,7 +444,7 @@ function EmployeeDetailsDialog({
 								<CalendarIcon className='h-4 w-4 mr-2' />
 								<span className='text-sm'>Ngày sinh</span>
 							</div>
-							<p className='font-medium'>{formatDate(employee.date_of_birth)}</p>
+							<p className='font-medium'>{formatDate(employee?.date_of_birth)}</p>
 						</div>
 
 						<div className='space-y-1'>
@@ -215,7 +452,7 @@ function EmployeeDetailsDialog({
 								<Briefcase className='h-4 w-4 mr-2' />
 								<span className='text-sm'>Bộ phận</span>
 							</div>
-							<p className='font-medium'>{getDepartmentDisplay(employee.department)}</p>
+							<p className='font-medium'>{getDepartmentDisplay(employee?.department)}</p>
 						</div>
 
 						<div className='space-y-1'>
@@ -223,7 +460,7 @@ function EmployeeDetailsDialog({
 								<Clock className='h-4 w-4 mr-2' />
 								<span className='text-sm'>Ngày bắt đầu</span>
 							</div>
-							<p className='font-medium'>{formatDate(employee.date_of_joining)}</p>
+							<p className='font-medium'>{formatDate(employee?.date_of_joining)}</p>
 						</div>
 					</div>
 
@@ -233,7 +470,7 @@ function EmployeeDetailsDialog({
 							<MapPin className='h-4 w-4 mr-2' />
 							<span className='text-sm'>Địa chỉ</span>
 						</div>
-						<p className='font-medium'>{employee.current_address || 'Chưa có thông tin'}</p>
+						<p className='font-medium'>{employee?.current_address || 'Chưa có thông tin'}</p>
 					</div>
 				</div>
 
@@ -245,32 +482,142 @@ function EmployeeDetailsDialog({
 	);
 }
 
+// Pagination Component
+function Pagination({
+	currentPage,
+	totalItems,
+	pageSize,
+	onPageChange,
+	onPageSizeChange,
+}: {
+	currentPage: number;
+	totalItems: number;
+	pageSize: number;
+	onPageChange: (page: number) => void;
+	onPageSizeChange: (size: number) => void;
+}) {
+	const totalPages = Math.ceil(totalItems / pageSize);
+
+	// Don't show pagination if there's only one page
+	if (totalPages <= 1) return null;
+
+	return (
+		<div className='flex items-center justify-between space-x-2'>
+			<div className='flex items-center text-sm text-muted-foreground'>
+				Trang {currentPage} / {totalPages || 1}
+			</div>
+			<div className='flex items-center space-x-2'>
+				<Button variant='outline' size='icon' onClick={() => onPageChange(1)} disabled={currentPage === 1}>
+					<ChevronsLeft className='h-4 w-4' />
+				</Button>
+				<Button
+					variant='outline'
+					size='icon'
+					onClick={() => onPageChange(currentPage - 1)}
+					disabled={currentPage === 1}
+				>
+					<ChevronLeft className='h-4 w-4' />
+				</Button>
+				<Button
+					variant='outline'
+					size='icon'
+					onClick={() => onPageChange(currentPage + 1)}
+					disabled={currentPage === totalPages}
+				>
+					<ChevronRight className='h-4 w-4' />
+				</Button>
+				<Button
+					variant='outline'
+					size='icon'
+					onClick={() => onPageChange(totalPages)}
+					disabled={currentPage === totalPages}
+				>
+					<ChevronsRight className='h-4 w-4' />
+				</Button>
+			</div>
+			<div className='flex items-center space-x-2'>
+				<Select
+					value={String(pageSize)}
+					onValueChange={(value) => {
+						onPageSizeChange(Number(value));
+					}}
+				>
+					<SelectTrigger className='w-[100px]'>
+						<SelectValue>{pageSize} / trang</SelectValue>
+					</SelectTrigger>
+					<SelectContent>
+						<SelectItem value='5'>5 / trang</SelectItem>
+						<SelectItem value='10'>10 / trang</SelectItem>
+						<SelectItem value='20'>20 / trang</SelectItem>
+						<SelectItem value='50'>50 / trang</SelectItem>
+					</SelectContent>
+				</Select>
+			</div>
+		</div>
+	);
+}
+
 export default function ObjectManagementPage() {
 	const [searchQuery, setSearchQuery] = useState('');
 	const [typeFilter, setTypeFilter] = useState('all');
 	const [editDialogOpen, setEditDialogOpen] = useState(false);
 	const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
-	const [selectedEmployee, setSelectedEmployee] = useState<any>(null);
-	const employeeService = useEmployeeService();
+	const [selectedEmployeeName, setSelectedEmployeeName] = useState<string | null>(null);
 	const [viewDialogOpen, setViewDialogOpen] = useState(false);
+	const [statusFilter, setStatusFilter] = useState('all');
 
+	// Pagination state
+	const [currentPage, setCurrentPage] = useState(1);
+	const [pageSize, setPageSize] = useState(10);
+	const [totalItems, setTotalItems] = useState(0);
+
+	// Advanced filter state
+	const [filterPanelOpen, setFilterPanelOpen] = useState(false);
+	const [advancedFilters, setAdvancedFilters] = useState<FilterOptions>({
+		employeeTypes: { 'Tất cả': true },
+		departments: { 'Tất cả': true },
+	});
+
+	// Reference to filter button for positioning the panel
+	const filterButtonRef = useRef<HTMLButtonElement>(null);
+
+	const employeeService = useEmployeeService();
 	const queryClient = useQueryClient();
 	const { toast } = useToast();
 
+	// Get departments for filter
+	const { data: departments } = useQuery({
+		queryKey: ['departments'],
+		queryFn: () => DepartmentService.getAllDepartments(),
+	});
+
+	// Get employees with pagination
 	const {
 		data: employees,
 		isLoading,
 		error,
 		refetch,
 	} = useQuery({
-		queryKey: ['employees'],
-		queryFn: () => EmployeeService.getEmployees(),
+		queryKey: ['employees', currentPage, pageSize, searchQuery, typeFilter, advancedFilters],
+		queryFn: async () => {
+			// Get employees with pagination
+			const result = await EmployeeService.getEmployees({
+				page: currentPage,
+				pageSize: pageSize,
+			});
+
+			// For demo, we'll set a mock total count - in a real app this would come from the API
+			// In a real implementation, the API should return a total count
+			setTotalItems(100); // Mock total count - replace with actual count from API
+
+			return result;
+		},
 	});
 
-	const getEmployeeQuery = useQuery({
-		queryKey: ['employee', selectedEmployee?.name],
-		queryFn: () => (selectedEmployee ? employeeService.getEmployeeByName(selectedEmployee.name) : null),
-		enabled: !!selectedEmployee && (editDialogOpen || viewDialogOpen),
+	const { data: employeeDetail, isLoading: isEmployeeDetailLoading } = useQuery({
+		queryKey: ['employee', selectedEmployeeName],
+		queryFn: () => (selectedEmployeeName ? employeeService.getEmployeeByName(selectedEmployeeName) : null),
+		enabled: !!selectedEmployeeName && (editDialogOpen || viewDialogOpen || deleteDialogOpen),
 	});
 
 	// Update employee mutation
@@ -279,6 +626,7 @@ export default function ObjectManagementPage() {
 			employeeService.updateEmployee(data.name, data.employeeData),
 		onSuccess: () => {
 			queryClient.invalidateQueries({ queryKey: ['employees'] });
+			queryClient.invalidateQueries({ queryKey: ['employee', selectedEmployeeName] });
 			refetch();
 			toast({
 				title: 'Cập nhật thành công',
@@ -316,8 +664,30 @@ export default function ObjectManagementPage() {
 		},
 	});
 
+	// Handle page change
+	const handlePageChange = (page: number) => {
+		setCurrentPage(page);
+	};
+
+	// Handle page size change
+	const handlePageSizeChange = (newSize: number) => {
+		setPageSize(newSize);
+		setCurrentPage(1); // Reset to first page when changing page size
+	};
+
+	// Handle applying advanced filters
+	const handleApplyFilters = (filters: FilterOptions) => {
+		setAdvancedFilters(filters);
+		setCurrentPage(1); // Reset to first page when applying filters
+	};
+
+	// Toggle filter panel
+	const toggleFilterPanel = () => {
+		setFilterPanelOpen(!filterPanelOpen);
+	};
+
 	const handleViewClick = (employee: any) => {
-		setSelectedEmployee(employee);
+		setSelectedEmployeeName(employee.name);
 		setViewDialogOpen(true);
 	};
 
@@ -337,10 +707,27 @@ export default function ObjectManagementPage() {
 	const getDisplayStatus = (status: string) => {
 		const statusMap: Record<string, string> = {
 			Active: 'Đang làm việc',
-			Inactive: 'Đã rời đi',
-			'On Leave': 'Tạm vắng',
+			Inactive: 'Đã nghỉ',
+			'On Leave': 'Đi ra ngoài',
 		};
 		return statusMap[status] || status;
+	};
+
+	// Map departments to Vietnamese
+	const getDepartmentDisplay = (department: string | undefined) => {
+		if (!department) return 'Chưa có thông tin';
+
+		const departmentMap: Record<string, string> = {
+			Management: 'Ban lãnh đạo',
+			HR: 'Nhân sự',
+			IT: 'CNTT',
+			Finance: 'Tài chính',
+			Operations: 'Vận hành',
+			Marketing: 'Marketing',
+			Sales: 'Kinh doanh',
+		};
+
+		return departmentMap[department] || department;
 	};
 
 	// Apply filters and search
@@ -351,35 +738,72 @@ export default function ObjectManagementPage() {
 			employee.employee_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
 			employee.department.toLowerCase().includes(searchQuery.toLowerCase());
 
-		// Type filter
-		const employeeType = getDisplayType(employee.employment_type);
-		const matchesType =
-			typeFilter === 'all' ||
-			(typeFilter === 'employee' && employeeType === 'Nhân viên') ||
-			(typeFilter === 'contractor' && employeeType === 'Nhà thầu') ||
-			(typeFilter === 'visitor' && employeeType === 'Khách');
+		// Status filter
+		const matchesStatus =
+			statusFilter === 'all' ||
+			(statusFilter === 'active' && employee.status === 'Active') ||
+			(statusFilter === 'on-leave' && employee.status === 'On Leave') ||
+			(statusFilter === 'inactive' && employee.status === 'Inactive');
 
-		return matchesSearch && matchesType;
+		// Advanced department filter
+		const departmentName = getDepartmentDisplay(employee.department);
+		const matchesDepartment = advancedFilters.departments['Tất cả'] || advancedFilters.departments[departmentName];
+
+		return matchesSearch && matchesStatus && matchesDepartment;
 	});
 
 	// Handle edit button click
 	const handleEditClick = (employee: any) => {
-		setSelectedEmployee(employee);
+		setSelectedEmployeeName(employee.name);
 		setEditDialogOpen(true);
 	};
 
 	// Handle delete button click
 	const handleDeleteClick = (employee: any) => {
-		setSelectedEmployee(employee);
+		setSelectedEmployeeName(employee.name);
 		setDeleteDialogOpen(true);
 	};
 
 	// Handle delete confirmation
 	const handleDeleteConfirm = () => {
-		if (selectedEmployee) {
-			deleteMutation.mutate(selectedEmployee.name);
+		if (selectedEmployeeName) {
+			deleteMutation.mutate(selectedEmployeeName);
 		}
 	};
+
+	// Reset to first page when changing filters
+	useEffect(() => {
+		setCurrentPage(1);
+	}, [searchQuery, typeFilter, advancedFilters]);
+
+	// Close filter panel when clicking outside
+	useEffect(() => {
+		const handleClickOutside = (event: MouseEvent) => {
+			if (
+				filterPanelOpen &&
+				filterButtonRef.current &&
+				!filterButtonRef.current.contains(event.target as Node) &&
+				!(event.target as Element).closest('.filter-panel')
+			) {
+				setFilterPanelOpen(false);
+			}
+		};
+
+		document.addEventListener('mousedown', handleClickOutside);
+		return () => {
+			document.removeEventListener('mousedown', handleClickOutside);
+		};
+	}, [filterPanelOpen]);
+
+	// Find the selected employee in the list if employeeDetail is not loaded yet
+	const findSelectedEmployee = () => {
+		if (employeeDetail) return employeeDetail;
+		if (!selectedEmployeeName || !employees) return null;
+
+		return employees.find((emp) => emp.name === selectedEmployeeName) || null;
+	};
+
+	const selectedEmployee: any = findSelectedEmployee();
 
 	// Display error with retry button if there's an error
 	if (error) {
@@ -434,23 +858,63 @@ export default function ObjectManagementPage() {
 							<div className='flex items-center gap-2'>
 								<Select
 									defaultValue='all'
-									value={typeFilter}
-									onValueChange={(value) => setTypeFilter(value)}
+									value={statusFilter} // New state variable
+									onValueChange={(value) => setStatusFilter(value)}
 									disabled={isLoading}
 								>
 									<SelectTrigger className='w-[180px]'>
-										<SelectValue placeholder='Loại đối tượng' />
+										<SelectValue placeholder='Trạng thái' />
 									</SelectTrigger>
 									<SelectContent>
-										<SelectItem value='all'>Tất cả</SelectItem>
-										<SelectItem value='employee'>Nhân viên</SelectItem>
-										<SelectItem value='contractor'>Nhà thầu</SelectItem>
-										<SelectItem value='visitor'>Khách</SelectItem>
+										<SelectItem value='all'>
+											<div className='flex items-center gap-2'>
+												<Checkbox checked={statusFilter === 'all'} className='h-4 w-4' />
+												<span>Tất cả</span>
+											</div>
+										</SelectItem>
+										<SelectItem value='active'>
+											<div className='flex items-center gap-2'>
+												<Checkbox checked={statusFilter === 'active'} className='h-4 w-4' />
+												<span>Đang làm việc</span>
+											</div>
+										</SelectItem>
+										<SelectItem value='on-leave'>
+											<div className='flex items-center gap-2'>
+												<Checkbox checked={statusFilter === 'on-leave'} className='h-4 w-4' />
+												<span>Đi ra ngoài</span>
+											</div>
+										</SelectItem>
+										<SelectItem value='inactive'>
+											<div className='flex items-center gap-2'>
+												<Checkbox checked={statusFilter === 'inactive'} className='h-4 w-4' />
+												<span>Đã nghỉ</span>
+											</div>
+										</SelectItem>
 									</SelectContent>
 								</Select>
-								<Button variant='outline' size='icon' disabled={isLoading}>
-									<Filter className='h-4 w-4' />
-								</Button>
+								<div className='relative'>
+									<Button
+										variant='outline'
+										size='icon'
+										disabled={isLoading}
+										onClick={toggleFilterPanel}
+										ref={filterButtonRef}
+										aria-label='Mở bộ lọc nâng cao'
+										className={filterPanelOpen ? 'bg-primary/10' : ''}
+									>
+										<FilterIcon className='h-4 w-4' />
+									</Button>
+
+									{/* Filter Panel */}
+									<div className='filter-panel'>
+										<FilterPanel
+											isOpen={filterPanelOpen}
+											onClose={() => setFilterPanelOpen(false)}
+											onApply={handleApplyFilters}
+											departments={departments}
+										/>
+									</div>
+								</div>
 							</div>
 						</div>
 						<div className='rounded-md border'>
@@ -467,7 +931,7 @@ export default function ObjectManagementPage() {
 								<TableBody>
 									{isLoading ? (
 										// Show skeleton rows while loading
-										Array(5)
+										Array(pageSize)
 											.fill(0)
 											.map((_, index) => <TableRowSkeleton key={index} />)
 									) : filteredObjects && filteredObjects.length > 0 ? (
@@ -535,7 +999,9 @@ export default function ObjectManagementPage() {
 									) : (
 										<TableRow>
 											<TableCell colSpan={5} className='text-center py-6 text-muted-foreground'>
-												{searchQuery || typeFilter !== 'all'
+												{searchQuery ||
+												statusFilter !== 'all' ||
+												!advancedFilters.departments['Tất cả']
 													? 'Không tìm thấy đối tượng phù hợp'
 													: 'Chưa có đối tượng nào'}
 											</TableCell>
@@ -545,34 +1011,41 @@ export default function ObjectManagementPage() {
 							</Table>
 						</div>
 					</CardContent>
+					<CardFooter>
+						<div className='w-full'>
+							<Pagination
+								currentPage={currentPage}
+								totalItems={totalItems}
+								pageSize={pageSize}
+								onPageChange={handlePageChange}
+								onPageSizeChange={handlePageSizeChange}
+							/>
+						</div>
+					</CardFooter>
 				</Card>
 			</div>
 
-			{selectedEmployee && (
-				<EmployeeDetailsDialog
-					open={viewDialogOpen}
-					onOpenChange={setViewDialogOpen}
-					employee={getEmployeeQuery.data || selectedEmployee}
-					isLoading={getEmployeeQuery.isLoading}
-				/>
-			)}
+			<EmployeeDetailsDialog
+				open={viewDialogOpen}
+				onOpenChange={setViewDialogOpen}
+				employee={employeeDetail || selectedEmployee}
+				isLoading={isEmployeeDetailLoading}
+			/>
 
 			{/* Edit Employee Dialog */}
-			{selectedEmployee && (
-				<EditEmployeeDialog
-					open={editDialogOpen}
-					onOpenChange={setEditDialogOpen}
-					employee={getEmployeeQuery.data || selectedEmployee}
-					onSubmit={(data) => {
-						updateMutation.mutate({
-							name: selectedEmployee.name,
-							employeeData: data,
-						});
-					}}
-					isSubmitting={updateMutation.isPending}
-					isLoading={getEmployeeQuery.isLoading}
-				/>
-			)}
+			<EditEmployeeDialog
+				open={editDialogOpen}
+				onOpenChange={setEditDialogOpen}
+				employee={employeeDetail || selectedEmployee}
+				onSubmit={(data) => {
+					updateMutation.mutate({
+						name: selectedEmployeeName!,
+						employeeData: data,
+					});
+				}}
+				isSubmitting={updateMutation.isPending}
+				isLoading={isEmployeeDetailLoading}
+			/>
 
 			{/* Delete Confirmation Dialog */}
 			{selectedEmployee && (
@@ -628,17 +1101,24 @@ function EditEmployeeDialog({
 		queryFn: () => GenderService.getAllGenders(),
 	});
 
+	// State for handling the avatar
+	const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
+	const [avatarFile, setAvatarFile] = useState<File | null>(null);
+	const [isUploading, setIsUploading] = useState(false);
+	const { toast } = useToast();
+
 	const form = useForm<EmployeeData>({
 		defaultValues: {
-			first_name: employee.first_name || '',
-			gender: employee.gender || 'Male',
-			date_of_joining: employee.date_of_joining || '',
-			date_of_birth: employee.date_of_birth || '',
-			department: employee.department || '',
-			employment_type: employee.employment_type || 'Full-time',
-			cell_number: employee.cell_number || '',
-			personal_email: employee.personal_email || '',
-			current_address: employee.current_address || '',
+			first_name: employee?.first_name || '',
+			gender: employee?.gender || 'Male',
+			date_of_joining: employee?.date_of_joining || '',
+			date_of_birth: employee?.date_of_birth || '',
+			department: employee?.department || '',
+			employment_type: employee?.employment_type || 'Full-time',
+			cell_number: employee?.cell_number || '',
+			personal_email: employee?.personal_email || '',
+			current_address: employee?.current_address || '',
+			custom_face_images: employee?.custom_face_images || '',
 		},
 	});
 
@@ -655,7 +1135,15 @@ function EditEmployeeDialog({
 				cell_number: employee.cell_number || '',
 				personal_email: employee.personal_email || '',
 				current_address: employee.current_address || '',
+				custom_face_images: employee.custom_face_images || '',
 			});
+
+			// Set avatar preview if exists
+			if (employee.custom_face_images) {
+				setAvatarPreview(`https://dev4.tadalabs.vn/${employee.custom_face_images}`);
+			} else {
+				setAvatarPreview(null);
+			}
 		}
 	}, [employee, form, isLoading]);
 
@@ -667,7 +1155,6 @@ function EditEmployeeDialog({
 						<DialogTitle>Đang tải thông tin...</DialogTitle>
 					</DialogHeader>
 					<div className='flex justify-center p-4'>
-						{/* Add loading indicator here */}
 						<div className='h-8 w-8 animate-spin rounded-full border-2 border-primary border-t-transparent'></div>
 					</div>
 				</DialogContent>
@@ -675,7 +1162,69 @@ function EditEmployeeDialog({
 		);
 	}
 
+	// Handle file change for avatar with direct upload
+	const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+		const file = e.target.files?.[0];
+		if (!file) return;
+
+		// Create a temporary preview
+		const previewUrl = URL.createObjectURL(file);
+		setAvatarPreview(previewUrl);
+		setAvatarFile(file);
+		setIsUploading(true);
+
+		try {
+			// Upload the file immediately
+			const response: any = await FileUploadService.uploadFile(
+				file,
+				'Employee', // doctype - fixed to 'Employee'
+				employee.name || '', // docname - employee ID
+				false // isPrivate - set to false for avatars
+			);
+
+			if (response.message) {
+				// If upload successful, set the file URL in the form
+				const fileUrl = response.message?.file_url;
+				form.setValue('custom_face_images', fileUrl);
+				toast({
+					title: 'Tải ảnh thành công',
+					description: 'Ảnh đại diện đã được cập nhật',
+				});
+			} else {
+				// If upload failed, show error and reset
+				toast({
+					title: 'Lỗi tải ảnh',
+					description: 'Không thể tải ảnh lên. Vui lòng thử lại.',
+					variant: 'destructive',
+				});
+				// Reset to previous avatar if there was one
+				if (employee.custom_face_images) {
+					setAvatarPreview(`https://dev4.tadalabs.vn/${employee.custom_face_images}`);
+				} else {
+					setAvatarPreview(null);
+				}
+			}
+		} catch (error) {
+			toast({
+				title: 'Lỗi tải ảnh',
+				description: 'Có lỗi xảy ra khi tải ảnh lên. Vui lòng thử lại sau.',
+				variant: 'destructive',
+			});
+			console.error('Error uploading avatar:', error);
+			// Reset to previous avatar if there was one
+			if (employee.custom_face_images) {
+				setAvatarPreview(`https://dev4.tadalabs.vn/${employee.custom_face_images}`);
+			} else {
+				setAvatarPreview(null);
+			}
+		} finally {
+			setIsUploading(false);
+		}
+	};
+
 	const handleSubmit = (data: EmployeeData) => {
+		// No need to do anything special with the avatar here anymore
+		// since we've already uploaded it and set the URL in the form
 		onSubmit(data);
 	};
 
@@ -688,19 +1237,73 @@ function EditEmployeeDialog({
 				</DialogHeader>
 				<Form {...form}>
 					<form onSubmit={form.handleSubmit(handleSubmit)} className='space-y-4'>
-						<FormField
-							control={form.control}
-							name='first_name'
-							render={({ field }) => (
-								<FormItem>
-									<FormLabel>Họ và tên</FormLabel>
-									<FormControl>
-										<Input placeholder='Nhập họ và tên' {...field} />
-									</FormControl>
-									<FormMessage />
-								</FormItem>
-							)}
-						/>
+						{/* Avatar upload section */}
+						<div className='flex flex-col items-center space-y-4 mb-4'>
+							<div className='h-24 w-24 rounded-full bg-primary/10 flex items-center justify-center text-primary overflow-hidden relative'>
+								{isUploading ? (
+									<div className='absolute inset-0 flex items-center justify-center bg-black bg-opacity-30'>
+										<div className='h-8 w-8 animate-spin rounded-full border-2 border-white border-t-transparent'></div>
+									</div>
+								) : null}
+								{avatarPreview ? (
+									<Image
+										src={avatarPreview}
+										width={96}
+										height={96}
+										alt='Avatar preview'
+										className='rounded-full object-cover'
+									/>
+								) : (
+									<User className='h-12 w-12' />
+								)}
+								<input
+									type='file'
+									accept='image/*'
+									id='avatar-upload'
+									onChange={handleFileChange}
+									className='absolute inset-0 opacity-0 cursor-pointer'
+									aria-label='Upload avatar'
+									disabled={isUploading}
+								/>
+							</div>
+							<label
+								htmlFor='avatar-upload'
+								className={`text-sm text-primary ${
+									isUploading ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer hover:underline'
+								}`}
+							>
+								{isUploading ? 'Đang tải ảnh...' : 'Thay đổi ảnh đại diện'}
+							</label>
+						</div>
+
+						<div className='grid grid-cols-2 gap-4'>
+							<FormField
+								control={form.control}
+								name='first_name'
+								render={({ field }) => (
+									<FormItem>
+										<FormLabel>Họ và tên</FormLabel>
+										<FormControl>
+											<Input placeholder='Nhập họ và tên' {...field} />
+										</FormControl>
+										<FormMessage />
+									</FormItem>
+								)}
+							/>
+							<FormField
+								control={form.control}
+								name='personal_email'
+								render={({ field }) => (
+									<FormItem>
+										<FormLabel>Email</FormLabel>
+										<FormControl>
+											<Input placeholder='Nhập địa chỉ email' {...field} />
+										</FormControl>
+										<FormMessage />
+									</FormItem>
+								)}
+							/>
+						</div>
 
 						<div className='grid grid-cols-2 gap-4'>
 							<FormField
@@ -744,7 +1347,7 @@ function EditEmployeeDialog({
 								control={form.control}
 								name='date_of_birth'
 								render={({ field }) => (
-									<FormItem className='flex flex-col'>
+									<FormItem>
 										<FormLabel>Ngày sinh</FormLabel>
 										<Popover>
 											<PopoverTrigger asChild>
@@ -848,74 +1451,62 @@ function EditEmployeeDialog({
 							/>
 						</div>
 
-						<FormField
-							control={form.control}
-							name='date_of_joining'
-							render={({ field }) => (
-								<FormItem className='flex flex-col'>
-									<FormLabel>Ngày bắt đầu</FormLabel>
-									<Popover>
-										<PopoverTrigger asChild>
-											<FormControl>
-												<Button
-													variant={'outline'}
-													className={cn(
-														'w-full pl-3 text-left font-normal',
-														!field.value && 'text-muted-foreground'
-													)}
-												>
-													{field.value ? (
-														format(new Date(field.value), 'dd/MM/yyyy')
-													) : (
-														<span>Chọn ngày</span>
-													)}
-													<CalendarIcon className='ml-auto h-4 w-4 opacity-50' />
-												</Button>
-											</FormControl>
-										</PopoverTrigger>
-										<PopoverContent className='w-auto p-0' align='start'>
-											<Calendar
-												mode='single'
-												selected={field.value ? new Date(field.value) : undefined}
-												onSelect={(date) =>
-													field.onChange(date ? format(date, 'yyyy-MM-dd') : '')
-												}
-												initialFocus
-											/>
-										</PopoverContent>
-									</Popover>
-									<FormMessage />
-								</FormItem>
-							)}
-						/>
+						<div className='grid grid-cols-2 gap-4'>
+							<FormField
+								control={form.control}
+								name='date_of_joining'
+								render={({ field }) => (
+									<FormItem>
+										<FormLabel>Ngày bắt đầu</FormLabel>
+										<Popover>
+											<PopoverTrigger asChild>
+												<FormControl>
+													<Button
+														variant={'outline'}
+														className={cn(
+															'w-full pl-3 text-left font-normal',
+															!field.value && 'text-muted-foreground'
+														)}
+													>
+														{field.value ? (
+															format(new Date(field.value), 'dd/MM/yyyy')
+														) : (
+															<span>Chọn ngày</span>
+														)}
+														<CalendarIcon className='ml-auto h-4 w-4 opacity-50' />
+													</Button>
+												</FormControl>
+											</PopoverTrigger>
+											<PopoverContent className='w-auto p-0' align='start'>
+												<Calendar
+													mode='single'
+													selected={field.value ? new Date(field.value) : undefined}
+													onSelect={(date) =>
+														field.onChange(date ? format(date, 'yyyy-MM-dd') : '')
+													}
+													initialFocus
+												/>
+											</PopoverContent>
+										</Popover>
+										<FormMessage />
+									</FormItem>
+								)}
+							/>
 
-						<FormField
-							control={form.control}
-							name='cell_number'
-							render={({ field }) => (
-								<FormItem>
-									<FormLabel>Số điện thoại</FormLabel>
-									<FormControl>
-										<Input placeholder='Nhập số điện thoại' {...field} />
-									</FormControl>
-									<FormMessage />
-								</FormItem>
-							)}
-						/>
-
-						<FormField
-							control={form.control}
-							name='personal_email'
-							render={({ field }) => (
-								<FormItem>
-									<FormLabel>Email</FormLabel>
-									<FormControl>
-										<Input placeholder='Nhập địa chỉ email' {...field} />
-									</FormControl>
-									<FormMessage />
-								</FormItem>
-							)}
-						/>
+							<FormField
+								control={form.control}
+								name='cell_number'
+								render={({ field }) => (
+									<FormItem>
+										<FormLabel>Số điện thoại</FormLabel>
+										<FormControl>
+											<Input placeholder='Nhập số điện thoại' {...field} />
+										</FormControl>
+										<FormMessage />
+									</FormItem>
+								)}
+							/>
+						</div>
 
 						<FormField
 							control={form.control}
@@ -935,7 +1526,7 @@ function EditEmployeeDialog({
 							<Button type='button' variant='outline' onClick={() => onOpenChange(false)}>
 								Hủy
 							</Button>
-							<Button type='submit' disabled={isSubmitting}>
+							<Button type='submit' disabled={isSubmitting || isUploading}>
 								{isSubmitting ? 'Đang lưu...' : 'Lưu thay đổi'}
 							</Button>
 						</DialogFooter>

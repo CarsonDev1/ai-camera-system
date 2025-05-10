@@ -344,28 +344,32 @@ export default function AddObjectPage() {
 													control={form.control}
 													name='dob'
 													render={({ field }) => (
-														<FormItem className='flex flex-col'>
-															<FormLabel>Ngày sinh</FormLabel>
+														<FormItem className='flex flex-col space-y-2'>
+															<FormLabel className='text-sm font-medium'>
+																Ngày sinh
+															</FormLabel>
 															<Popover>
 																<PopoverTrigger asChild>
 																	<FormControl>
 																		<Button
-																			variant={'outline'}
+																			variant='outline'
 																			className={cn(
-																				'w-full pl-3 text-left font-normal',
+																				'w-full h-12 px-4 py-2 text-left font-normal flex items-center justify-between border rounded-2xl shadow-sm hover:bg-gray-50 transition-all',
 																				!field.value && 'text-muted-foreground'
 																			)}
 																		>
 																			{field.value ? (
 																				format(field.value, 'dd/MM/yyyy')
 																			) : (
-																				<span>Chọn ngày</span>
+																				<span className='text-gray-400'>
+																					Chọn ngày sinh
+																				</span>
 																			)}
-																			<CalendarIcon className='ml-auto h-4 w-4 opacity-50' />
+																			<CalendarIcon className='h-5 w-5 opacity-80' />
 																		</Button>
 																	</FormControl>
 																</PopoverTrigger>
-																<PopoverContent className='w-auto p-0' align='start'>
+																<PopoverContent className='w-[300px] p-4 rounded-2xl shadow-lg'>
 																	<Calendar
 																		mode='single'
 																		selected={field.value}
@@ -375,14 +379,29 @@ export default function AddObjectPage() {
 																			date < new Date('1900-01-01')
 																		}
 																		initialFocus
-																		captionLayout='dropdown-buttons'
+																		captionLayout='buttons'
 																		fromYear={1950}
 																		toYear={2010}
+																		classNames={{
+																			caption_label:
+																				'text-sm font-medium text-center',
+																			table: 'w-full border-collapse',
+																			head_row: 'grid grid-cols-7 gap-2',
+																			head_cell:
+																				'text-muted-foreground font-medium text-xs text-center',
+																			row: 'grid grid-cols-7 gap-2',
+																			cell: 'text-center text-sm p-1 hover:bg-gray-100 rounded-lg',
+																			day: 'h-9 w-9 font-normal rounded-md hover:bg-primary hover:text-primary-foreground',
+																			day_selected: 'bg-primary text-white',
+																			day_disabled: 'text-gray-400 opacity-50',
+																			day_today:
+																				'bg-accent text-accent-foreground',
+																		}}
 																	/>
 																</PopoverContent>
 															</Popover>
-															<FormDescription>
-																Ngày sinh được dùng để tính tuổi.
+															<FormDescription className='text-xs text-muted-foreground'>
+																Ngày sinh được dùng để tính tuổi và thông tin nhân sự.
 															</FormDescription>
 															<FormMessage />
 														</FormItem>
@@ -395,40 +414,59 @@ export default function AddObjectPage() {
 													control={form.control}
 													name='joiningDate'
 													render={({ field }) => (
-														<FormItem className='flex flex-col'>
-															<FormLabel>Ngày vào công ty</FormLabel>
+														<FormItem className='flex flex-col space-y-2'>
+															<FormLabel className='text-sm font-medium'>
+																Ngày vào công ty
+															</FormLabel>
 															<Popover>
 																<PopoverTrigger asChild>
 																	<FormControl>
 																		<Button
-																			variant={'outline'}
+																			variant='outline'
 																			className={cn(
-																				'w-full pl-3 text-left font-normal',
+																				'w-full h-12 px-4 py-2 text-left font-normal flex items-center justify-between border rounded-2xl shadow-sm hover:bg-gray-50 transition-all',
 																				!field.value && 'text-muted-foreground'
 																			)}
 																		>
 																			{field.value ? (
 																				format(field.value, 'dd/MM/yyyy')
 																			) : (
-																				<span>Chọn ngày</span>
+																				<span className='text-gray-400'>
+																					Chọn ngày
+																				</span>
 																			)}
-																			<CalendarIcon className='ml-auto h-4 w-4 opacity-50' />
+																			<CalendarIcon className='h-5 w-5 opacity-80' />
 																		</Button>
 																	</FormControl>
 																</PopoverTrigger>
-																<PopoverContent className='w-auto p-0' align='start'>
+																<PopoverContent className='w-[300px] p-4 rounded-2xl shadow-lg'>
 																	<Calendar
 																		mode='single'
 																		selected={field.value}
 																		onSelect={field.onChange}
 																		initialFocus
-																		captionLayout='dropdown-buttons'
+																		captionLayout='buttons'
 																		fromYear={2000}
 																		toYear={2025}
+																		classNames={{
+																			caption_label:
+																				'text-sm font-medium text-center',
+																			table: 'w-full border-collapse',
+																			head_row: 'grid grid-cols-7 gap-2',
+																			head_cell:
+																				'text-muted-foreground font-medium text-xs text-center',
+																			row: 'grid grid-cols-7 gap-2',
+																			cell: 'text-center text-sm p-1 hover:bg-gray-100 rounded-lg',
+																			day: 'h-9 w-9 font-normal rounded-md hover:bg-primary hover:text-primary-foreground',
+																			day_selected: 'bg-primary text-white',
+																			day_disabled: 'text-gray-400 opacity-50',
+																			day_today:
+																				'bg-accent text-accent-foreground',
+																		}}
 																	/>
 																</PopoverContent>
 															</Popover>
-															<FormDescription>
+															<FormDescription className='text-xs text-muted-foreground'>
 																Ngày vào công ty của đối tượng.
 															</FormDescription>
 															<FormMessage />
@@ -471,9 +509,9 @@ export default function AddObjectPage() {
 										</div>
 									</CardContent>
 									<div className='p-6 flex justify-end gap-2'>
-										<Button variant='outline' type='button'>
+										{/* <Button variant='outline' type='button'>
 											Hủy
-										</Button>
+										</Button> */}
 										<Button type='submit' disabled={createEmployeeMutation.isPending}>
 											{createEmployeeMutation.isPending ? (
 												<>

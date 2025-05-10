@@ -108,7 +108,7 @@ const LocationDistributionCard = ({ accessRecords = [] }: any) => {
 				)}
 
 				{/* Recent activities section */}
-				{accessRecords && accessRecords.length > 0 && (
+				{/* {accessRecords && accessRecords.length > 0 && (
 					<div className='mt-6'>
 						<h3 className='text-sm font-medium mb-4'>Hoạt động gần đây</h3>
 						<div className='space-y-4'>
@@ -146,7 +146,7 @@ const LocationDistributionCard = ({ accessRecords = [] }: any) => {
 							))}
 						</div>
 					</div>
-				)}
+				)} */}
 			</CardContent>
 		</Card>
 	);

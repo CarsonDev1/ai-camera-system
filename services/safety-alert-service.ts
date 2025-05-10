@@ -26,7 +26,7 @@ const SafetyAlertsService = {
    * @param pageLength Number of records per page (optional)
    * @returns Promise with array of safety alerts
    */
-  getSafetyAlerts: async (page?: number, pageLength?: number): Promise<SafetyAlert[]> => {
+  getSafetyAlerts: async (page?: number, pageLength?: number, p0?: boolean): Promise<SafetyAlert[]> => {
     let url = '/method/fire_alarm_app.custom_api.dashboard_api.get_atld_alerts_with_employee';
 
     // Add pagination parameters if provided

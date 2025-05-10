@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useCallback } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { DashboardHeader } from '@/components/dashboard-header';
 import { Button } from '@/components/ui/button';
@@ -20,6 +20,7 @@ import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Plus, MoreHorizontal, Search, Filter, Clock, AlertTriangle, Camera, MapPin } from 'lucide-react';
 import IntrusionLogService, { IntrusionLogEntry } from '@/services/intrusion-log-service';
+import { toast } from '@/components/ui/use-toast';
 
 export default function SecurityMonitoringPage() {
 	// State for search and filters
@@ -27,15 +28,33 @@ export default function SecurityMonitoringPage() {
 	const [eventTypeFilter, setEventTypeFilter] = useState('all');
 	const [activeTab, setActiveTab] = useState('events');
 
-	// Fetch intrusion log data
+	// Fetch intrusion log data with react-query
 	const {
 		data: intrusionLogs,
 		isLoading: isLoadingLogs,
 		error: logsError,
+		refetch,
+		isRefetching,
 	} = useQuery({
 		queryKey: ['intrusionLogs'],
 		queryFn: () => IntrusionLogService.getIntrusionLogs(),
 	});
+
+	// Refresh data function for the header
+	const handleRefresh = useCallback(async () => {
+		toast({
+			title: 'Đang làm mới...',
+			description: 'Đang tải lại dữ liệu sự kiện an ninh.',
+		});
+
+		try {
+			await refetch();
+			return true; // Return a success indicator for the header component
+		} catch (error) {
+			console.error('Error refreshing data:', error);
+			throw error; // Propagate error to header component
+		}
+	}, [refetch]);
 
 	// Apply filters to the intrusion logs
 	const filteredLogs = intrusionLogs?.filter((log) => {
@@ -151,7 +170,12 @@ export default function SecurityMonitoringPage() {
 
 	return (
 		<div className='flex flex-col h-full'>
-			<DashboardHeader title='Giám sát an ninh' description='Theo dõi và quản lý các sự kiện an ninh' />
+			<DashboardHeader
+				title='Giám sát an ninh'
+				description='Theo dõi và quản lý các sự kiện an ninh'
+				onRefresh={handleRefresh}
+				isLoading={isLoadingLogs || isRefetching}
+			/>
 			<div className='p-6 space-y-6 flex-1 overflow-auto'>
 				<Tabs defaultValue='events' value={activeTab} onValueChange={handleTabChange} className='w-full'>
 					<TabsList className='grid w-full max-w-md grid-cols-2'>
@@ -185,7 +209,7 @@ export default function SecurityMonitoringPage() {
 												className='pl-8 w-full'
 												value={searchQuery}
 												onChange={(e) => setSearchQuery(e.target.value)}
-												disabled={isLoadingLogs}
+												disabled={isLoadingLogs || isRefetching}
 											/>
 										</div>
 										<div className='flex items-center gap-2'>
@@ -193,7 +217,7 @@ export default function SecurityMonitoringPage() {
 												defaultValue='all'
 												value={eventTypeFilter}
 												onValueChange={setEventTypeFilter}
-												disabled={isLoadingLogs}
+												disabled={isLoadingLogs || isRefetching}
 											>
 												<SelectTrigger className='w-full md:w-[180px]'>
 													<SelectValue placeholder='Loại sự kiện' />
@@ -205,7 +229,15 @@ export default function SecurityMonitoringPage() {
 													<SelectItem value='restricted'>Đi vào khu vực cấm</SelectItem>
 												</SelectContent>
 											</Select>
-											<Button variant='outline' size='icon' disabled={isLoadingLogs}>
+											<Button
+												variant='outline'
+												size='icon'
+												disabled={isLoadingLogs || isRefetching}
+												onClick={() => {
+													setSearchQuery('');
+													setEventTypeFilter('all');
+												}}
+											>
 												<Filter className='h-4 w-4' />
 											</Button>
 										</div>
@@ -223,7 +255,7 @@ export default function SecurityMonitoringPage() {
 												</TableRow>
 											</TableHeader>
 
-											{isLoadingLogs ? (
+											{isLoadingLogs || isRefetching ? (
 												// Show skeleton loading state
 												renderEventSkeletons()
 											) : logsError ? (
