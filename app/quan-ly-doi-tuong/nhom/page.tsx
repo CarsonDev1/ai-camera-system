@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { DashboardHeader } from '@/components/dashboard-header';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -19,9 +19,22 @@ import { Badge } from '@/components/ui/badge';
 import { UsersRound, MoreHorizontal, Plus, Search, UserPlus } from 'lucide-react';
 import EmployeeGroupsService from '@/services/employee-group-service';
 import Link from 'next/link';
+import {
+	Dialog,
+	DialogContent,
+	DialogDescription,
+	DialogFooter,
+	DialogHeader,
+	DialogTitle,
+	DialogTrigger,
+} from '@/components/ui/dialog';
+import { Label } from '@/components/ui/label';
 
 export default function GroupManagementPage() {
 	const [searchQuery, setSearchQuery] = useState('');
+	const [open, setOpen] = useState(false);
+	const [departmentName, setDepartmentName] = useState('');
+	const queryClient = useQueryClient();
 
 	// Fetch employee groups using React Query v5
 	const {
@@ -32,6 +45,30 @@ export default function GroupManagementPage() {
 		queryKey: ['employeeGroups'],
 		queryFn: () => EmployeeGroupsService.getEmployeeGroups(),
 	});
+
+	// Create department mutation
+	const createDepartmentMutation = useMutation({
+		mutationFn: EmployeeGroupsService.createDepartment,
+		onSuccess: () => {
+			// Invalidate and refetch employee groups
+			queryClient.invalidateQueries({ queryKey: ['employeeGroups'] });
+			// Reset form and close dialog
+			setDepartmentName('');
+			setOpen(false);
+		},
+		onError: (error) => {
+			console.error('Failed to create department:', error);
+			// You can add toast notification here
+		},
+	});
+
+	// Handle form submission
+	const handleSubmit = (e: React.FormEvent) => {
+		e.preventDefault();
+		if (departmentName.trim()) {
+			createDepartmentMutation.mutate({ department_name: departmentName });
+		}
+	};
 
 	// Filter groups based on search query
 	const filteredGroups = groups?.filter(
@@ -90,10 +127,52 @@ export default function GroupManagementPage() {
 							/>
 						</div>
 					</div>
-					<Button>
-						<Plus className='h-4 w-4 mr-2' />
-						Thêm nhóm
-					</Button>
+					<Dialog open={open} onOpenChange={setOpen}>
+						<DialogTrigger asChild>
+							<Button>
+								<Plus className='h-4 w-4 mr-2' />
+								Thêm nhóm
+							</Button>
+						</DialogTrigger>
+						<DialogContent className='sm:max-w-[425px]'>
+							<DialogHeader>
+								<DialogTitle>Thêm nhóm mới</DialogTitle>
+								<DialogDescription>
+									Tạo một nhóm mới trong hệ thống. Nhấn lưu khi bạn hoàn tất.
+								</DialogDescription>
+							</DialogHeader>
+							<form onSubmit={handleSubmit}>
+								<div className='grid gap-4 py-4'>
+									<div className='grid grid-cols-4 items-center gap-4'>
+										<Label htmlFor='department_name' className='text-right'>
+											Tên nhóm
+										</Label>
+										<Input
+											id='department_name'
+											value={departmentName}
+											onChange={(e) => setDepartmentName(e.target.value)}
+											className='col-span-3'
+											placeholder='Nhập tên nhóm'
+											required
+										/>
+									</div>
+								</div>
+								<DialogFooter>
+									<Button
+										type='button'
+										variant='outline'
+										onClick={() => setOpen(false)}
+										disabled={createDepartmentMutation.isPending}
+									>
+										Hủy
+									</Button>
+									<Button type='submit' disabled={createDepartmentMutation.isPending}>
+										{createDepartmentMutation.isPending ? 'Đang tạo...' : 'Lưu'}
+									</Button>
+								</DialogFooter>
+							</form>
+						</DialogContent>
+					</Dialog>
 				</div>
 
 				<Card>
@@ -155,9 +234,11 @@ export default function GroupManagementPage() {
 														<DropdownMenuContent align='end'>
 															<DropdownMenuLabel>Hành động</DropdownMenuLabel>
 															<DropdownMenuSeparator />
-															<DropdownMenuItem>Xem chi tiết</DropdownMenuItem>
-															<DropdownMenuItem>Chỉnh sửa</DropdownMenuItem>
-															<DropdownMenuItem>Xem thành viên</DropdownMenuItem>
+															{/* <DropdownMenuItem>Xem chi tiết</DropdownMenuItem> */}
+															{/* <DropdownMenuItem>Chỉnh sửa</DropdownMenuItem> */}
+															<DropdownMenuItem>
+																<Link href='/quan-ly-doi-tuong'>Xem thành viên</Link>
+															</DropdownMenuItem>
 															<DropdownMenuItem className='text-red-600'>
 																Xóa
 															</DropdownMenuItem>
@@ -178,78 +259,6 @@ export default function GroupManagementPage() {
 						</div>
 					</CardContent>
 				</Card>
-
-				{/* <div className='grid grid-cols-1 md:grid-cols-2 gap-6'>
-					<Card>
-						<CardHeader>
-							<CardTitle>Thống kê nhóm</CardTitle>
-							<CardDescription>Thống kê số lượng thành viên theo nhóm</CardDescription>
-						</CardHeader>
-						<CardContent>
-							<div className='space-y-4'>
-								{groups &&
-									groups.map((group) => (
-										<div key={group.group_name} className='space-y-2'>
-											<div className='flex items-center justify-between'>
-												<span className='text-sm'>{group.group_name}</span>
-												<span className='text-sm font-medium'>{group.member_count}</span>
-											</div>
-											<div className='h-2 w-full bg-gray-100 rounded-full'>
-												<div
-													className='h-2 bg-blue-500 rounded-full'
-													style={{
-														width: `${(group.member_count / maxMemberCount) * 100}%`,
-													}}
-												></div>
-											</div>
-										</div>
-									))}
-							</div>
-						</CardContent>
-					</Card>
-
-					<Card>
-						<CardHeader>
-							<CardTitle>Hoạt động gần đây</CardTitle>
-							<CardDescription>Các hoạt động gần đây liên quan đến nhóm</CardDescription>
-						</CardHeader>
-						<CardContent>
-							<div className='space-y-4'>
-								<div className='flex items-center gap-4 p-3 rounded-lg border'>
-									<div className='h-10 w-10 bg-blue-100 rounded-full flex items-center justify-center text-blue-600'>
-										<UserPlus className='h-5 w-5' />
-									</div>
-									<div className='flex-1'>
-										<h4 className='text-sm font-medium'>
-											Thêm Nguyễn Văn A vào nhóm {groups?.[0]?.group_name || 'Phòng Sản xuất'}
-										</h4>
-										<p className='text-xs text-muted-foreground'>12/04/2025 - 10:25</p>
-									</div>
-								</div>
-								<div className='flex items-center gap-4 p-3 rounded-lg border'>
-									<div className='h-10 w-10 bg-green-100 rounded-full flex items-center justify-center text-green-600'>
-										<UsersRound className='h-5 w-5' />
-									</div>
-									<div className='flex-1'>
-										<h4 className='text-sm font-medium'>Tạo nhóm mới: Phòng Nghiên cứu</h4>
-										<p className='text-xs text-muted-foreground'>11/04/2025 - 14:30</p>
-									</div>
-								</div>
-								<div className='flex items-center gap-4 p-3 rounded-lg border'>
-									<div className='h-10 w-10 bg-yellow-100 rounded-full flex items-center justify-center text-yellow-600'>
-										<UsersRound className='h-5 w-5' />
-									</div>
-									<div className='flex-1'>
-										<h4 className='text-sm font-medium'>
-											Cập nhật thông tin nhóm {groups?.[1]?.group_name || 'Phòng Kỹ thuật'}
-										</h4>
-										<p className='text-xs text-muted-foreground'>10/04/2025 - 09:15</p>
-									</div>
-								</div>
-							</div>
-						</CardContent>
-					</Card>
-				</div> */}
 			</div>
 		</div>
 	);

@@ -14,10 +14,25 @@ import {
 	DropdownMenuSeparator,
 	DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { Activity, AlertTriangle, Clock, UserCheck, MoreHorizontal, ChevronLeft, ChevronRight } from 'lucide-react';
+import {
+	Activity,
+	AlertTriangle,
+	Clock,
+	UserCheck,
+	MoreHorizontal,
+	ChevronLeft,
+	ChevronRight,
+	Calendar,
+} from 'lucide-react';
 import SafetyAlertsService, { SafetyAlert } from '@/services/safety-alert-service';
 import Drawer from './ui/drawer';
 import ConfirmDialog from './ui/ConfirmDialog';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { cn } from '@/lib/utils';
+import { format } from 'date-fns';
+import { Calendar as CalendarComponent } from '@/components/ui/calendar';
+import { vi } from 'date-fns/locale';
+
 // Stats Cards Component - Shows safety alerts statistics
 export const SafetyAlertsStats = () => {
 	const { data: allAlerts, isLoading: isLoadingAll } = useQuery({
@@ -48,7 +63,7 @@ export const SafetyAlertsStats = () => {
 								<h2 className='text-3xl font-bold'>{isLoadingAll ? '...' : allAlerts?.length || 0}</h2>
 								<span className='text-xs font-medium text-red-500'>+12%</span>
 							</div>
-							<p className='text-xs text-muted-foreground mt-1'>So với hôm qua</p>
+							<p className='text-xs text-muted-foreground mt-1'>So với tháng trước</p>
 						</div>
 						<div className='h-12 w-12 bg-red-100 rounded-full flex items-center justify-center text-red-600'>
 							<Activity className='h-6 w-6' />
@@ -67,7 +82,7 @@ export const SafetyAlertsStats = () => {
 								</h2>
 								<span className='text-xs font-medium text-red-500'>+8%</span>
 							</div>
-							<p className='text-xs text-muted-foreground mt-1'>Cần xử lý</p>
+							<p className='text-xs text-muted-foreground mt-1'>So với tháng trước</p>
 						</div>
 						<div className='h-12 w-12 bg-yellow-100 rounded-full flex items-center justify-center text-yellow-600'>
 							<AlertTriangle className='h-6 w-6' />
@@ -84,7 +99,7 @@ export const SafetyAlertsStats = () => {
 								<h2 className='text-3xl font-bold'>0</h2>
 								<span className='text-xs font-medium text-green-500'>-5%</span>
 							</div>
-							<p className='text-xs text-muted-foreground mt-1'>Đang tiến hành</p>
+							<p className='text-xs text-muted-foreground mt-1'>So với tháng trước</p>
 						</div>
 						<div className='h-12 w-12 bg-blue-100 rounded-full flex items-center justify-center text-blue-600'>
 							<Clock className='h-6 w-6' />
@@ -103,7 +118,7 @@ export const SafetyAlertsStats = () => {
 								</h2>
 								<span className='text-xs font-medium text-green-500'>+15%</span>
 							</div>
-							<p className='text-xs text-muted-foreground mt-1'>Hoàn thành</p>
+							<p className='text-xs text-muted-foreground mt-1'>So với tháng trước</p>
 						</div>
 						<div className='h-12 w-12 bg-green-100 rounded-full flex items-center justify-center text-green-600'>
 							<UserCheck className='h-6 w-6' />
@@ -127,6 +142,9 @@ export const SafetyAlertsTable = ({
 	const [currentPage, setCurrentPage] = useState(1);
 	const [pageSize, setPageSize] = useState(5);
 	const [totalItems, setTotalItems] = useState(0);
+
+	// Add date filter state
+	const [selectedDate, setSelectedDate] = useState<Date | undefined>(undefined);
 
 	// Use the modified query with pagination
 	const {
@@ -161,7 +179,7 @@ export const SafetyAlertsTable = ({
 		setCurrentPage(page);
 	};
 
-	// Filter safety alerts based on search and filter criteria
+	// Filter safety alerts based on search, filter criteria, and date
 	const filteredAlerts = safetyAlerts?.filter((alert) => {
 		// Search filter
 		const matchesSearch =
@@ -184,17 +202,33 @@ export const SafetyAlertsTable = ({
 					alert.loai_vi_pham.includes('Đánh nhau') ||
 					alert.loai_vi_pham.includes('Đùa giỡn')));
 
-		return matchesSearch && matchesType;
+		// Date filter
+		let matchesDate = true;
+		if (selectedDate) {
+			const alertDate = new Date(alert.timestamp.split(' ')[0]);
+			const filterDate = new Date(selectedDate);
+			matchesDate =
+				alertDate.getFullYear() === filterDate.getFullYear() &&
+				alertDate.getMonth() === filterDate.getMonth() &&
+				alertDate.getDate() === filterDate.getDate();
+		}
+
+		return matchesSearch && matchesType && matchesDate;
 	});
 
 	// useEffect to refetch when filters change
 	useEffect(() => {
-		if (searchQuery || violationTypeFilter !== 'all') {
+		if (searchQuery || violationTypeFilter !== 'all' || selectedDate) {
 			// When filtering, we should reset to page 1
 			setCurrentPage(1);
 		}
 		refetch();
-	}, [searchQuery, violationTypeFilter, refetch]);
+	}, [searchQuery, violationTypeFilter, selectedDate, refetch]);
+
+	// Reset date filter
+	const resetDateFilter = () => {
+		setSelectedDate(undefined);
+	};
 
 	// Get severity level based on violation type
 	const getSeverityFromViolationType = (type: string): 'high' | 'medium' | 'low' => {
@@ -313,20 +347,59 @@ export const SafetyAlertsTable = ({
 	const handleConfirmReject = () => {
 		if (alertToReject) {
 			console.log('Vi phạm bị bác bỏ:', alertToReject);
-
 		}
 		setIsConfirmOpen(false);
 		setAlertToReject(null);
 	};
+
 	return (
 		<div className='flex flex-col'>
+			{/* Date filter button */}
+			<div className='mb-4 flex justify-between items-center'>
+				<div className='flex items-center gap-2'>
+					<Popover>
+						<PopoverTrigger asChild>
+							<Button
+								variant='outline'
+								className={cn(
+									'justify-start text-left font-normal',
+									!selectedDate && 'text-muted-foreground'
+								)}
+							>
+								<Calendar className='mr-2 h-4 w-4' />
+								{selectedDate ? format(selectedDate, 'dd/MM/yyyy', { locale: vi }) : 'Chọn ngày'}
+							</Button>
+						</PopoverTrigger>
+						<PopoverContent className='w-auto p-0' align='start'>
+							<CalendarComponent
+								mode='single'
+								selected={selectedDate}
+								onSelect={setSelectedDate}
+								locale={vi}
+								initialFocus
+							/>
+						</PopoverContent>
+					</Popover>
+					{selectedDate && (
+						<Button
+							variant='ghost'
+							size='sm'
+							onClick={resetDateFilter}
+							className='text-muted-foreground hover:text-foreground'
+						>
+							Xóa lọc
+						</Button>
+					)}
+				</div>
+			</div>
+
 			<Table>
 				<TableHeader>
 					<TableRow>
 						<TableHead>Loại vi phạm</TableHead>
 						<TableHead>Vị trí</TableHead>
 						<TableHead>Thời gian</TableHead>
-						<TableHead>Bộ phân</TableHead>
+						<TableHead>Bộ phận</TableHead>
 						<TableHead>Đối tượng vi phạm</TableHead>
 						<TableHead>Trạng thái</TableHead>
 						<TableHead className='w-[80px]'></TableHead>
@@ -340,7 +413,7 @@ export const SafetyAlertsTable = ({
 					) : alertsError ? (
 						// Show error state
 						<TableRow>
-							<TableCell colSpan={6} className='h-24 text-center'>
+							<TableCell colSpan={7} className='h-24 text-center'>
 								<div className='flex flex-col items-center justify-center py-4'>
 									<AlertTriangle className='h-8 w-8 text-red-500 mb-2' />
 									<div className='text-sm font-medium'>Đã xảy ra lỗi</div>
@@ -353,8 +426,6 @@ export const SafetyAlertsTable = ({
 					) : filteredAlerts && filteredAlerts.length > 0 ? (
 						// Show actual data
 						filteredAlerts.map((alert: SafetyAlert, index) => {
-
-
 							const severity = getSeverityFromViolationType(alert.loai_vi_pham);
 							return (
 								<>
@@ -362,12 +433,13 @@ export const SafetyAlertsTable = ({
 										<TableCell>
 											<div className='flex items-center gap-2'>
 												<div
-													className={`h-2 w-2 rounded-full ${severity === 'high'
-														? 'bg-red-500'
-														: severity === 'medium'
+													className={`h-2 w-2 rounded-full ${
+														severity === 'high'
+															? 'bg-red-500'
+															: severity === 'medium'
 															? 'bg-yellow-500'
 															: 'bg-blue-500'
-														}`}
+													}`}
 												/>
 												<span>{alert.loai_vi_pham}</span>
 											</div>
@@ -382,8 +454,8 @@ export const SafetyAlertsTable = ({
 													alert.trang_thai === 'Chưa xử lý'
 														? 'destructive'
 														: alert.trang_thai === 'Đang xử lý'
-															? 'default'
-															: 'outline'
+														? 'default'
+														: 'outline'
 												}
 											>
 												{alert.trang_thai}
@@ -392,7 +464,11 @@ export const SafetyAlertsTable = ({
 										<TableCell>
 											<DropdownMenu>
 												<DropdownMenuTrigger asChild>
-													<Button variant='ghost' className='h-8 w-8 p-0' aria-label='Mở menu'>
+													<Button
+														variant='ghost'
+														className='h-8 w-8 p-0'
+														aria-label='Mở menu'
+													>
 														<MoreHorizontal className='h-4 w-4' />
 													</Button>
 												</DropdownMenuTrigger>
@@ -402,19 +478,18 @@ export const SafetyAlertsTable = ({
 													<DropdownMenuItem onClick={handleDataDetail(alert)}>
 														Xem chi tiết
 													</DropdownMenuItem>
-
-													{/* <DropdownMenuItem>
-													{alert.trang_thai === 'Chưa xử lý'
-														? 'Xác nhận vi phạm'
-														: 'Đánh dấu chưa xử lý'}
-												</DropdownMenuItem> */}
-													<DropdownMenuItem onClick={handleRejectAlert(alert)}>Bác bỏ vi phạm</DropdownMenuItem>
-
+													<DropdownMenuItem onClick={handleRejectAlert(alert)}>
+														Bác bỏ vi phạm
+													</DropdownMenuItem>
 												</DropdownMenuContent>
 											</DropdownMenu>
 										</TableCell>
 									</TableRow>
-									<Drawer onClose={() => setIsDrawerOpen(false)} open={isDrawerOpen} data={selectedAlert} />
+									<Drawer
+										onClose={() => setIsDrawerOpen(false)}
+										open={isDrawerOpen}
+										data={selectedAlert}
+									/>
 									<ConfirmDialog
 										open={isConfirmOpen}
 										onConfirm={handleConfirmReject}
@@ -422,24 +497,21 @@ export const SafetyAlertsTable = ({
 											setIsConfirmOpen(false);
 											setAlertToReject(null);
 										}}
-										title="Xác nhận bác bỏ"
+										title='Xác nhận bác bỏ'
 										message={`Bạn có chắc chắn muốn bác bỏ vi phạm: "${alertToReject?.loai_vi_pham}"?`}
 									/>
-
 								</>
-
 							);
-
 						})
 					) : (
 						// Show empty state
 						<TableRow>
-							<TableCell colSpan={6} className='h-24 text-center'>
+							<TableCell colSpan={7} className='h-24 text-center'>
 								<div className='flex flex-col items-center justify-center py-4'>
 									<AlertTriangle className='h-8 w-8 text-muted-foreground opacity-40 mb-2' />
 									<div className='text-sm font-medium text-muted-foreground'>Không có vi phạm</div>
 									<div className='text-xs text-muted-foreground'>
-										{searchQuery || violationTypeFilter !== 'all'
+										{searchQuery || violationTypeFilter !== 'all' || selectedDate
 											? 'Không tìm thấy vi phạm phù hợp với điều kiện lọc'
 											: 'Hiện không có vi phạm an toàn lao động nào được ghi nhận'}
 									</div>
@@ -541,8 +613,9 @@ export const ViolationStatsChart = () => {
 								</div>
 								<div className='h-2 w-full bg-gray-100 rounded-full'>
 									<div
-										className={`h-2 rounded-full ${index === 0 ? 'bg-red-500' : index === 1 ? 'bg-yellow-500' : 'bg-blue-500'
-											}`}
+										className={`h-2 rounded-full ${
+											index === 0 ? 'bg-red-500' : index === 1 ? 'bg-yellow-500' : 'bg-blue-500'
+										}`}
 										style={{ width: `${item.percentage}%` }}
 									></div>
 								</div>
@@ -624,12 +697,13 @@ export const RecentViolations = () => {
 				return (
 					<div key={alert.name || `recent-${index}`} className='flex items-start gap-4 p-3 rounded-lg border'>
 						<div
-							className={`h-10 w-10 rounded-full flex items-center justify-center flex-shrink-0 ${severity === 'high'
-								? 'bg-red-100 text-red-600'
-								: severity === 'medium'
+							className={`h-10 w-10 rounded-full flex items-center justify-center flex-shrink-0 ${
+								severity === 'high'
+									? 'bg-red-100 text-red-600'
+									: severity === 'medium'
 									? 'bg-yellow-100 text-yellow-600'
 									: 'bg-blue-100 text-blue-600'
-								}`}
+							}`}
 						>
 							<AlertTriangle className='h-5 w-5' />
 						</div>
@@ -647,5 +721,4 @@ export const RecentViolations = () => {
 			})}
 		</div>
 	);
-
 };

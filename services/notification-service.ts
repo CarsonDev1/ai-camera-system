@@ -14,7 +14,8 @@ export interface NotificationCount {
 export interface NotificationsOverview {
   total: NotificationCount;
   pending: NotificationCount;
-  today: NotificationCount;
+  today: any;
+  done: NotificationCount;
 }
 
 /**
