@@ -16,7 +16,8 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { Activity, AlertTriangle, Clock, UserCheck, MoreHorizontal, ChevronLeft, ChevronRight } from 'lucide-react';
 import SafetyAlertsService, { SafetyAlert } from '@/services/safety-alert-service';
-
+import Drawer from './ui/drawer';
+import ConfirmDialog from './ui/ConfirmDialog';
 // Stats Cards Component - Shows safety alerts statistics
 export const SafetyAlertsStats = () => {
 	const { data: allAlerts, isLoading: isLoadingAll } = useQuery({
@@ -293,6 +294,30 @@ export const SafetyAlertsTable = ({
 		return <div className='flex gap-1'>{pages}</div>;
 	};
 
+	const [selectedAlert, setSelectedAlert] = useState<any>();
+
+	const [isDrawerOpen, setIsDrawerOpen] = useState(false);
+
+	const handleDataDetail = (alert: any) => () => {
+		setSelectedAlert(alert);
+		setIsDrawerOpen(true);
+	};
+	const [isConfirmOpen, setIsConfirmOpen] = useState(false);
+	const [alertToReject, setAlertToReject] = useState<SafetyAlert | null>(null);
+
+	const handleRejectAlert = (alert: SafetyAlert) => () => {
+		setAlertToReject(alert);
+		setIsConfirmOpen(true);
+	};
+
+	const handleConfirmReject = () => {
+		if (alertToReject) {
+			console.log('Vi phạm bị bác bỏ:', alertToReject);
+
+		}
+		setIsConfirmOpen(false);
+		setAlertToReject(null);
+	};
 	return (
 		<div className='flex flex-col'>
 			<Table>
@@ -301,7 +326,8 @@ export const SafetyAlertsTable = ({
 						<TableHead>Loại vi phạm</TableHead>
 						<TableHead>Vị trí</TableHead>
 						<TableHead>Thời gian</TableHead>
-						<TableHead>Đối tượng</TableHead>
+						<TableHead>Bộ phân</TableHead>
+						<TableHead>Đối tượng vi phạm</TableHead>
 						<TableHead>Trạng thái</TableHead>
 						<TableHead className='w-[80px]'></TableHead>
 					</TableRow>
@@ -327,61 +353,83 @@ export const SafetyAlertsTable = ({
 					) : filteredAlerts && filteredAlerts.length > 0 ? (
 						// Show actual data
 						filteredAlerts.map((alert: SafetyAlert, index) => {
+
+
 							const severity = getSeverityFromViolationType(alert.loai_vi_pham);
 							return (
-								<TableRow key={alert.name || `alert-${index}`}>
-									<TableCell>
-										<div className='flex items-center gap-2'>
-											<div
-												className={`h-2 w-2 rounded-full ${
-													severity === 'high'
+								<>
+									<TableRow key={alert.name || `alert-${index}`}>
+										<TableCell>
+											<div className='flex items-center gap-2'>
+												<div
+													className={`h-2 w-2 rounded-full ${severity === 'high'
 														? 'bg-red-500'
 														: severity === 'medium'
-														? 'bg-yellow-500'
-														: 'bg-blue-500'
-												}`}
-											/>
-											<span>{alert.loai_vi_pham}</span>
-										</div>
-									</TableCell>
-									<TableCell>{alert.khu_vuc}</TableCell>
-									<TableCell>{formatTimestamp(alert.timestamp)}</TableCell>
-									<TableCell>{alert.employee_name || 'Không xác định'}</TableCell>
-									<TableCell>
-										<Badge
-											variant={
-												alert.trang_thai === 'Chưa xử lý'
-													? 'destructive'
-													: alert.trang_thai === 'Đang xử lý'
-													? 'default'
-													: 'outline'
-											}
-										>
-											{alert.trang_thai}
-										</Badge>
-									</TableCell>
-									<TableCell>
-										<DropdownMenu>
-											<DropdownMenuTrigger asChild>
-												<Button variant='ghost' className='h-8 w-8 p-0' aria-label='Mở menu'>
-													<MoreHorizontal className='h-4 w-4' />
-												</Button>
-											</DropdownMenuTrigger>
-											<DropdownMenuContent align='end'>
-												<DropdownMenuLabel>Hành động</DropdownMenuLabel>
-												<DropdownMenuSeparator />
-												<DropdownMenuItem>Xem chi tiết</DropdownMenuItem>
-												<DropdownMenuItem>
+															? 'bg-yellow-500'
+															: 'bg-blue-500'
+														}`}
+												/>
+												<span>{alert.loai_vi_pham}</span>
+											</div>
+										</TableCell>
+										<TableCell>{alert.khu_vuc}</TableCell>
+										<TableCell>{formatTimestamp(alert.timestamp)}</TableCell>
+										<TableCell>{alert.department}</TableCell>
+										<TableCell>{alert.employee_name || 'Không xác định'}</TableCell>
+										<TableCell>
+											<Badge
+												variant={
+													alert.trang_thai === 'Chưa xử lý'
+														? 'destructive'
+														: alert.trang_thai === 'Đang xử lý'
+															? 'default'
+															: 'outline'
+												}
+											>
+												{alert.trang_thai}
+											</Badge>
+										</TableCell>
+										<TableCell>
+											<DropdownMenu>
+												<DropdownMenuTrigger asChild>
+													<Button variant='ghost' className='h-8 w-8 p-0' aria-label='Mở menu'>
+														<MoreHorizontal className='h-4 w-4' />
+													</Button>
+												</DropdownMenuTrigger>
+												<DropdownMenuContent align='end'>
+													<DropdownMenuLabel>Hành động</DropdownMenuLabel>
+													<DropdownMenuSeparator />
+													<DropdownMenuItem onClick={handleDataDetail(alert)}>
+														Xem chi tiết
+													</DropdownMenuItem>
+
+													{/* <DropdownMenuItem>
 													{alert.trang_thai === 'Chưa xử lý'
 														? 'Xác nhận vi phạm'
 														: 'Đánh dấu chưa xử lý'}
-												</DropdownMenuItem>
-												<DropdownMenuItem>Bác bỏ vi phạm</DropdownMenuItem>
-											</DropdownMenuContent>
-										</DropdownMenu>
-									</TableCell>
-								</TableRow>
+												</DropdownMenuItem> */}
+													<DropdownMenuItem onClick={handleRejectAlert(alert)}>Bác bỏ vi phạm</DropdownMenuItem>
+
+												</DropdownMenuContent>
+											</DropdownMenu>
+										</TableCell>
+									</TableRow>
+									<Drawer onClose={() => setIsDrawerOpen(false)} open={isDrawerOpen} data={selectedAlert} />
+									<ConfirmDialog
+										open={isConfirmOpen}
+										onConfirm={handleConfirmReject}
+										onCancel={() => {
+											setIsConfirmOpen(false);
+											setAlertToReject(null);
+										}}
+										title="Xác nhận bác bỏ"
+										message={`Bạn có chắc chắn muốn bác bỏ vi phạm: "${alertToReject?.loai_vi_pham}"?`}
+									/>
+
+								</>
+
 							);
+
 						})
 					) : (
 						// Show empty state
@@ -493,9 +541,8 @@ export const ViolationStatsChart = () => {
 								</div>
 								<div className='h-2 w-full bg-gray-100 rounded-full'>
 									<div
-										className={`h-2 rounded-full ${
-											index === 0 ? 'bg-red-500' : index === 1 ? 'bg-yellow-500' : 'bg-blue-500'
-										}`}
+										className={`h-2 rounded-full ${index === 0 ? 'bg-red-500' : index === 1 ? 'bg-yellow-500' : 'bg-blue-500'
+											}`}
 										style={{ width: `${item.percentage}%` }}
 									></div>
 								</div>
@@ -577,13 +624,12 @@ export const RecentViolations = () => {
 				return (
 					<div key={alert.name || `recent-${index}`} className='flex items-start gap-4 p-3 rounded-lg border'>
 						<div
-							className={`h-10 w-10 rounded-full flex items-center justify-center flex-shrink-0 ${
-								severity === 'high'
-									? 'bg-red-100 text-red-600'
-									: severity === 'medium'
+							className={`h-10 w-10 rounded-full flex items-center justify-center flex-shrink-0 ${severity === 'high'
+								? 'bg-red-100 text-red-600'
+								: severity === 'medium'
 									? 'bg-yellow-100 text-yellow-600'
 									: 'bg-blue-100 text-blue-600'
-							}`}
+								}`}
 						>
 							<AlertTriangle className='h-5 w-5' />
 						</div>
@@ -601,4 +647,5 @@ export const RecentViolations = () => {
 			})}
 		</div>
 	);
+
 };

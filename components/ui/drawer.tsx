@@ -1,118 +1,90 @@
-"use client"
+'use client';
 
-import * as React from "react"
-import { Drawer as DrawerPrimitive } from "vaul"
+import { X } from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 
-import { cn } from "@/lib/utils"
+export default function Drawer({ open, onClose, data }: {
+    open: boolean;
+    onClose: () => void;
+    data: any;
+}) {
+    if (!open) return null;
+    const formatTimestamp = (timestamp: string) => {
+        try {
+            if (!timestamp) return '';
+            const [datePart, timePart] = timestamp.split(' ');
+            if (!datePart || !timePart) return timestamp;
 
-const Drawer = ({
-  shouldScaleBackground = true,
-  ...props
-}: React.ComponentProps<typeof DrawerPrimitive.Root>) => (
-  <DrawerPrimitive.Root
-    shouldScaleBackground={shouldScaleBackground}
-    {...props}
-  />
-)
-Drawer.displayName = "Drawer"
+            const [year, month, day] = datePart.split('-');
+            const time = timePart.substring(0, 5);
 
-const DrawerTrigger = DrawerPrimitive.Trigger
+            return `${time} - ${day}/${month}/${year}`;
+        } catch (error) {
+            return timestamp;
+        }
+    };
 
-const DrawerPortal = DrawerPrimitive.Portal
+    return (
+        <div className="fixed inset-0 z-50">
+            <div className="fixed inset-0 bg-gray-100 bg-opacity-0" onClick={onClose} />
+            <div className="fixed right-0 top-0 h-full w-full max-w-2xl bg-white shadow-xl transition-transform duration-300 ease-in-out overflow-y-auto">
+                <div className="flex justify-between items-center p-4 border-b">
+                    <h2 className="text-xl font-semibold">Chi tiết vi phạm</h2>
+                    <button onClick={onClose}>
+                        <X className="h-5 w-5" />
+                    </button>
+                </div>
 
-const DrawerClose = DrawerPrimitive.Close
+                <div className="p-4 space-y-6">
+                    <section>
+                        <h3 className="text-lg font-medium mb-2">Thông tin vi phạm</h3>
+                        <div className="grid grid-cols-2 gap-4 text-sm">
+                            <div><strong>Tên đối tượng vi phạm:</strong> {data.name}</div>
+                            <div><strong>Bộ phận:</strong> {data.department}</div>
+                            <div><strong>Loại vi phạm:</strong> {data.loai_vi_pham}</div>
+                            <div><strong>Thời gian xảy ra:</strong> {formatTimestamp(data.timestamp)}</div>
+                            <div><strong>Vị trí:</strong> {data.khu_vuc}</div>
+                            <div><strong>Mã vi phạm:</strong> {data.cam_id}</div>
+                        </div>
+                    </section>
 
-const DrawerOverlay = React.forwardRef<
-  React.ElementRef<typeof DrawerPrimitive.Overlay>,
-  React.ComponentPropsWithoutRef<typeof DrawerPrimitive.Overlay>
->(({ className, ...props }, ref) => (
-  <DrawerPrimitive.Overlay
-    ref={ref}
-    className={cn("fixed inset-0 z-50 bg-black/80", className)}
-    {...props}
-  />
-))
-DrawerOverlay.displayName = DrawerPrimitive.Overlay.displayName
-
-const DrawerContent = React.forwardRef<
-  React.ElementRef<typeof DrawerPrimitive.Content>,
-  React.ComponentPropsWithoutRef<typeof DrawerPrimitive.Content>
->(({ className, children, ...props }, ref) => (
-  <DrawerPortal>
-    <DrawerOverlay />
-    <DrawerPrimitive.Content
-      ref={ref}
-      className={cn(
-        "fixed inset-x-0 bottom-0 z-50 mt-24 flex h-auto flex-col rounded-t-[10px] border bg-background",
-        className
-      )}
-      {...props}
-    >
-      <div className="mx-auto mt-4 h-2 w-[100px] rounded-full bg-muted" />
-      {children}
-    </DrawerPrimitive.Content>
-  </DrawerPortal>
-))
-DrawerContent.displayName = "DrawerContent"
-
-const DrawerHeader = ({
-  className,
-  ...props
-}: React.HTMLAttributes<HTMLDivElement>) => (
-  <div
-    className={cn("grid gap-1.5 p-4 text-center sm:text-left", className)}
-    {...props}
-  />
-)
-DrawerHeader.displayName = "DrawerHeader"
-
-const DrawerFooter = ({
-  className,
-  ...props
-}: React.HTMLAttributes<HTMLDivElement>) => (
-  <div
-    className={cn("mt-auto flex flex-col gap-2 p-4", className)}
-    {...props}
-  />
-)
-DrawerFooter.displayName = "DrawerFooter"
-
-const DrawerTitle = React.forwardRef<
-  React.ElementRef<typeof DrawerPrimitive.Title>,
-  React.ComponentPropsWithoutRef<typeof DrawerPrimitive.Title>
->(({ className, ...props }, ref) => (
-  <DrawerPrimitive.Title
-    ref={ref}
-    className={cn(
-      "text-lg font-semibold leading-none tracking-tight",
-      className
-    )}
-    {...props}
-  />
-))
-DrawerTitle.displayName = DrawerPrimitive.Title.displayName
-
-const DrawerDescription = React.forwardRef<
-  React.ElementRef<typeof DrawerPrimitive.Description>,
-  React.ComponentPropsWithoutRef<typeof DrawerPrimitive.Description>
->(({ className, ...props }, ref) => (
-  <DrawerPrimitive.Description
-    ref={ref}
-    className={cn("text-sm text-muted-foreground", className)}
-    {...props}
-  />
-))
-DrawerDescription.displayName = DrawerPrimitive.Description.displayName
-
-export {
-  Drawer,
-  DrawerPortal,
-  DrawerOverlay,
-  DrawerTrigger,
-  DrawerClose,
-  DrawerContent,
-  DrawerHeader,
-  DrawerFooter,
-  DrawerTitle,
-  DrawerDescription,
+                    <section>
+                        <h3 className="text-lg font-medium mb-2">Bằng chứng</h3>
+                        <div className="grid grid-cols-2 gap-4">
+                            <div className="h-40 bg-gray-100 flex items-center justify-center border rounded">
+                                <span className="text-gray-500 text-sm">Chưa có hình ảnh</span>
+                            </div>
+                            <div className="h-40 bg-gray-100 flex items-center justify-center border rounded">
+                                <span className="text-gray-500 text-sm">Chưa có video</span>
+                            </div>
+                        </div>
+                    </section>
+                    <section>
+                        <h3 className="text-lg font-medium mb-2">Lịch sử xử lý</h3>
+                        <div className="text-sm">
+                            <p>Phát hiện vi phạm: {formatTimestamp(data.timestamp)} – {formatTimestamp(data.timestamp)}</p>
+                        </div>
+                    </section>
+                    <section>
+                        <h3 className="text-lg font-medium mb-2">Trạng thái xử lý</h3>
+                        <div className="text-sm space-y-2">
+                            <p><strong>Trạng thái hiện tại:</strong> <Badge variant="outline">Đang xử lý</Badge></p>
+                            <p><strong>Người phát hiện:</strong> {data.name}</p>
+                            <p><strong>Thời gian phát hiện:</strong> {formatTimestamp(data.timestamp)}</p>
+                            <p><strong>Người xử lý:</strong> {data.name}</p>
+                            <textarea
+                                className="w-full border rounded p-2 mt-2"
+                                placeholder="Nhập ghi chú xử lý tại đây..."
+                            />
+                            <div className="flex gap-2 mt-2">
+                                <Button variant="default">Đánh dấu đã xử lý</Button>
+                                <Button variant="outline">Đánh dấu chưa xử lý</Button>
+                            </div>
+                        </div>
+                    </section>
+                </div>
+            </div>
+        </div>
+    );
 }
