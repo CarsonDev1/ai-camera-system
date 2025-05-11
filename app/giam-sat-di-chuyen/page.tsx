@@ -1,3 +1,8 @@
+"use client"
+
+import { useState } from 'react';
+import * as XLSX from 'xlsx';
+import { saveAs } from 'file-saver';
 import { DashboardHeader } from "@/components/dashboard-header"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -97,7 +102,26 @@ export default function MovementMonitoringPage() {
     { id: "5", name: "Khu vực bảo trì", count: 3, status: "normal" },
     { id: "6", name: "Khu vực xây dựng", count: 0, status: "restricted" },
   ]
+  const handleExportExcel = () => {
+    const worksheetData = movements.map((m) => ({
+      'Người di chuyển': m.person,
+      'Mã NV': m.employeeId,
+      'Bộ phận': m.department,
+      'Thời gian': m.time,
+      'Từ': m.fromLocation,
+      'Đến': m.toLocation,
+      'Thời gian di chuyển': m.duration,
+      'Trạng thái': m.status,
+    }));
 
+    const worksheet = XLSX.utils.json_to_sheet(worksheetData);
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, 'DiChuyen');
+
+    const excelBuffer = XLSX.write(workbook, { bookType: 'xlsx', type: 'array' });
+    const blob = new Blob([excelBuffer], { type: 'application/octet-stream' });
+    saveAs(blob, `lich_su_di_chuyen_${Date.now()}.xlsx`);
+  };
   return (
     <div className="flex flex-col h-full">
       <DashboardHeader title="Giám sát di chuyển" description="Theo dõi di chuyển của nhân viên trong khu vực" />
@@ -115,10 +139,11 @@ export default function MovementMonitoringPage() {
               <Calendar className="h-4 w-4 mr-2" />
               Chọn ngày
             </Button>
-            <Button>
+            <Button onClick={handleExportExcel}>
               <Download className="h-4 w-4 mr-2" />
               Xuất báo cáo
             </Button>
+
           </div>
         </div>
 
@@ -298,13 +323,12 @@ export default function MovementMonitoringPage() {
                   {areas.map((area) => (
                     <div key={area.id} className="flex items-center gap-4 p-3 rounded-lg border">
                       <div
-                        className={`h-10 w-10 rounded-full flex items-center justify-center ${
-                          area.status === "crowded"
-                            ? "bg-red-100 text-red-600"
-                            : area.status === "restricted"
-                              ? "bg-yellow-100 text-yellow-600"
-                              : "bg-green-100 text-green-600"
-                        }`}
+                        className={`h-10 w-10 rounded-full flex items-center justify-center ${area.status === "crowded"
+                          ? "bg-red-100 text-red-600"
+                          : area.status === "restricted"
+                            ? "bg-yellow-100 text-yellow-600"
+                            : "bg-green-100 text-green-600"
+                          }`}
                       >
                         <MapPin className="h-5 w-5" />
                       </div>

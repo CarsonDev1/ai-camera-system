@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { DashboardHeader } from '@/components/dashboard-header';
 import { Button } from '@/components/ui/button';
@@ -23,12 +23,16 @@ import IntrusionLogService, { IntrusionLogEntry } from '@/services/intrusion-log
 import { toast } from '@/components/ui/use-toast';
 
 export default function SecurityMonitoringPage() {
-	// State for search and filters
 	const [searchQuery, setSearchQuery] = useState('');
 	const [eventTypeFilter, setEventTypeFilter] = useState('all');
 	const [activeTab, setActiveTab] = useState('events');
 
-	// Fetch intrusion log data with react-query
+	// Pagination state
+	const [currentPage, setCurrentPage] = useState(1);
+	const rowsPerPage = 5;
+
+
+
 	const {
 		data: intrusionLogs,
 		isLoading: isLoadingLogs,
@@ -40,7 +44,6 @@ export default function SecurityMonitoringPage() {
 		queryFn: () => IntrusionLogService.getIntrusionLogs(),
 	});
 
-	// Refresh data function for the header
 	const handleRefresh = useCallback(async () => {
 		toast({
 			title: 'Đang làm mới...',
@@ -49,23 +52,20 @@ export default function SecurityMonitoringPage() {
 
 		try {
 			await refetch();
-			return true; // Return a success indicator for the header component
+			return true;
 		} catch (error) {
 			console.error('Error refreshing data:', error);
-			throw error; // Propagate error to header component
+			throw error;
 		}
 	}, [refetch]);
 
-	// Apply filters to the intrusion logs
 	const filteredLogs = intrusionLogs?.filter((log) => {
-		// Search filter
 		const matchesSearch =
 			searchQuery === '' ||
 			log.position.toLowerCase().includes(searchQuery.toLowerCase()) ||
 			log.event.toLowerCase().includes(searchQuery.toLowerCase()) ||
 			log.entity.toLowerCase().includes(searchQuery.toLowerCase());
 
-		// Event type filter
 		const matchesType =
 			eventTypeFilter === 'all' ||
 			(eventTypeFilter === 'stranger' && log.event.includes('Phát hiện người lạ')) ||
@@ -75,6 +75,13 @@ export default function SecurityMonitoringPage() {
 		return matchesSearch && matchesType;
 	});
 
+	const paginatedLogs = filteredLogs?.slice(
+		(currentPage - 1) * rowsPerPage,
+		currentPage * rowsPerPage
+	);
+	useEffect(() => {
+		setCurrentPage(1);
+	}, [searchQuery, eventTypeFilter]);
 	// Dữ liệu mẫu cho bảng khu vực giám sát
 	const monitoringAreas = [
 		{
@@ -277,7 +284,8 @@ export default function SecurityMonitoringPage() {
 											) : filteredLogs && filteredLogs.length > 0 ? (
 												// Show actual data
 												<TableBody>
-													{filteredLogs.map((log: IntrusionLogEntry, index) => (
+													{paginatedLogs?.map((log: IntrusionLogEntry, index) => (
+
 														<TableRow key={`log-${index}`}>
 															<TableCell>
 																<div className='flex items-center gap-2'>
@@ -431,6 +439,31 @@ export default function SecurityMonitoringPage() {
 							</Card>
 						</TabsContent>
 					</div>
+					{filteredLogs && filteredLogs.length > rowsPerPage && (
+						<div className="flex justify-between items-center px-4 py-3">
+							<span className="text-sm text-muted-foreground">
+								Trang {currentPage} / {Math.ceil(filteredLogs.length / rowsPerPage)}
+							</span>
+							<div className="space-x-2">
+								<Button
+									variant="outline"
+									size="sm"
+									disabled={currentPage === 1}
+									onClick={() => setCurrentPage((p) => Math.max(p - 1, 1))}
+								>
+									Trước
+								</Button>
+								<Button
+									variant="outline"
+									size="sm"
+									disabled={currentPage === Math.ceil(filteredLogs.length / rowsPerPage)}
+									onClick={() => setCurrentPage((p) => Math.min(p + 1, Math.ceil(filteredLogs.length / rowsPerPage)))}
+								>
+									Sau
+								</Button>
+							</div>
+						</div>
+					)}
 				</Tabs>
 			</div>
 		</div>

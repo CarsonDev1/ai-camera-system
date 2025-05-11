@@ -1,7 +1,10 @@
+'use client';
 import { DashboardHeader } from '@/components/dashboard-header';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import * as XLSX from 'xlsx';
+import { saveAs } from 'file-saver';
 import {
 	DropdownMenu,
 	DropdownMenuContent,
@@ -92,7 +95,26 @@ export default function RealTimeAlertsPage() {
 			status: 'Đã xử lý',
 		},
 	];
+	const handleExportExcel = () => {
+		const worksheetData = alerts.map((alert) => ({
+			'Loại cảnh báo': alert.type,
+			'Mô tả': alert.description,
+			'Người vi phạm': alert.person,
+			'Mã nhân viên': alert.employeeId,
+			'Thời gian': alert.time,
+			'Vị trí': alert.location,
+			'Mức độ': alert.severity,
+			'Trạng thái': alert.status,
+		}));
 
+		const worksheet = XLSX.utils.json_to_sheet(worksheetData);
+		const workbook = XLSX.utils.book_new();
+		XLSX.utils.book_append_sheet(workbook, worksheet, 'Cảnh báo');
+
+		const excelBuffer = XLSX.write(workbook, { bookType: 'xlsx', type: 'array' });
+		const blob = new Blob([excelBuffer], { type: 'application/octet-stream' });
+		saveAs(blob, `real_time_alerts_${Date.now()}.xlsx`);
+	};
 	return (
 		<div className='flex flex-col h-full'>
 			<DashboardHeader
@@ -114,10 +136,11 @@ export default function RealTimeAlertsPage() {
 							<Calendar className='h-4 w-4 mr-2' />
 							Chọn ngày
 						</Button>
-						<Button>
+						<Button onClick={handleExportExcel}>
 							<Download className='h-4 w-4 mr-2' />
 							Xuất báo cáo
 						</Button>
+
 					</div>
 				</div>
 
@@ -293,15 +316,15 @@ export default function RealTimeAlertsPage() {
 																alert.severity === 'high'
 																	? 'bg-red-50 text-red-700'
 																	: alert.severity === 'medium'
-																	? 'bg-yellow-50 text-yellow-700'
-																	: 'bg-blue-50 text-blue-700'
+																		? 'bg-yellow-50 text-yellow-700'
+																		: 'bg-blue-50 text-blue-700'
 															}
 														>
 															{alert.severity === 'high'
 																? 'Cao'
 																: alert.severity === 'medium'
-																? 'Trung bình'
-																: 'Thấp'}
+																	? 'Trung bình'
+																	: 'Thấp'}
 														</Badge>
 													</TableCell>
 													<TableCell>
@@ -311,8 +334,8 @@ export default function RealTimeAlertsPage() {
 																alert.status === 'Mới'
 																	? 'bg-red-50 text-red-700'
 																	: alert.status === 'Đang xử lý'
-																	? 'bg-yellow-50 text-yellow-700'
-																	: 'bg-green-50 text-green-700'
+																		? 'bg-yellow-50 text-yellow-700'
+																		: 'bg-green-50 text-green-700'
 															}
 														>
 															{alert.status}

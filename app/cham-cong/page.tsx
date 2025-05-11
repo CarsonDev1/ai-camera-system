@@ -1,7 +1,10 @@
+'use client';
 import { DashboardHeader } from "@/components/dashboard-header"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
+import * as XLSX from 'xlsx';
+import { saveAs } from 'file-saver';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -70,7 +73,25 @@ export default function AttendancePage() {
       method: "Khuôn mặt",
     },
   ]
+  const handleExportExcel = () => {
+    const worksheetData = attendances.map((record) => ({
+      'Tên nhân viên': record.name,
+      'Mã nhân viên': record.employeeId,
+      'Bộ phận': record.department,
+      'Giờ vào': record.checkIn,
+      'Giờ ra': record.checkOut,
+      'Trạng thái': record.status,
+      'Phương thức': record.method,
+    }));
 
+    const worksheet = XLSX.utils.json_to_sheet(worksheetData);
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, 'Cảnh báo');
+
+    const excelBuffer = XLSX.write(workbook, { bookType: 'xlsx', type: 'array' });
+    const blob = new Blob([excelBuffer], { type: 'application/octet-stream' });
+    saveAs(blob, `real_time_alerts_${Date.now()}.xlsx`);
+  };
   return (
     <div className="flex flex-col h-full">
       <DashboardHeader title="Chấm công" description="Quản lý thông tin chấm công của nhân viên" />
@@ -93,8 +114,8 @@ export default function AttendancePage() {
               <ArrowRightLeft className="h-4 w-4 mr-2" />
               Đồng bộ
             </Button>
-            <Button>
-              <Download className="h-4 w-4 mr-2" />
+            <Button onClick={handleExportExcel}>
+              <Download className='h-4 w-4 mr-2' />
               Xuất báo cáo
             </Button>
           </div>

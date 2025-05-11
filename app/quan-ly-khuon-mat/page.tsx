@@ -1,7 +1,11 @@
+"use client"
+import { useState } from "react"
 import { DashboardHeader } from "@/components/dashboard-header"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
+
+
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -17,7 +21,7 @@ import { MoreHorizontal, Search, Filter, UserPlus, Upload, RefreshCw } from "luc
 
 export default function FaceManagementPage() {
   // Dữ liệu mẫu cho bảng
-  const faces = [
+  const [faces, setFaces] = useState([
     {
       id: "1",
       name: "Nguyễn Văn A",
@@ -63,7 +67,19 @@ export default function FaceManagementPage() {
       lastUpdated: "01/04/2025",
       faceCount: 4,
     },
-  ]
+  ])
+
+  const [loading, setLoading] = useState(false)
+
+  const handleRefresh = () => {
+    setLoading(true)
+    setTimeout(() => {
+      // Bạn có thể thay bằng gọi API thật ở đây
+      setFaces([...faces]) // giả lập làm mới
+      setLoading(false)
+    }, 1500)
+  }
+
 
   return (
     <div className="flex flex-col h-full">
@@ -95,9 +111,9 @@ export default function FaceManagementPage() {
               <CardTitle>Danh sách khuôn mặt</CardTitle>
               <CardDescription>Quản lý dữ liệu khuôn mặt của nhân viên, nhà thầu và khách</CardDescription>
             </div>
-            <Button variant="outline" size="sm">
-              <RefreshCw className="h-4 w-4 mr-2" />
-              Làm mới
+            <Button variant="outline" size="sm" disabled={loading} onClick={handleRefresh}>
+              <RefreshCw className={`h-4 w-4 mr-2 ${loading ? "animate-spin" : ""}`} />
+              {loading ? "Đang làm mới..." : "Làm mới"}
             </Button>
           </CardHeader>
           <CardContent>
@@ -147,13 +163,12 @@ export default function FaceManagementPage() {
                       <TableCell>{face.faceCount}</TableCell>
                       <TableCell>
                         <div
-                          className={`px-2 py-1 rounded-full text-xs inline-block font-medium ${
-                            face.status === "Đã xác thực"
-                              ? "bg-green-100 text-green-700"
-                              : face.status === "Chờ xác thực"
-                                ? "bg-yellow-100 text-yellow-700"
-                                : "bg-red-100 text-red-700"
-                          }`}
+                          className={`px-2 py-1 rounded-full text-xs inline-block font-medium ${face.status === "Đã xác thực"
+                            ? "bg-green-100 text-green-700"
+                            : face.status === "Chờ xác thực"
+                              ? "bg-yellow-100 text-yellow-700"
+                              : "bg-red-100 text-red-700"
+                            }`}
                         >
                           {face.status}
                         </div>

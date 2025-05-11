@@ -1,3 +1,5 @@
+'use client';
+
 import { DashboardHeader } from "@/components/dashboard-header"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -6,6 +8,8 @@ import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Badge } from "@/components/ui/badge"
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import * as XLSX from 'xlsx';
+import { saveAs } from 'file-saver';
 import {
   Calendar,
   Download,
@@ -68,7 +72,24 @@ export default function SecurityHistoryPage() {
       camera: "Camera 3",
     },
   ]
+  const handleExportExcel = () => {
+    const worksheetData = events.map((record) => ({
+      'Loại sự kiện': record.type,
+      'Vị trí': record.location,
+      'Thời gian': record.time,
+      'Camera': record.camera,
+      'Mức độ': record.severity,
+      'Trạng thái': record.status,
+    }));
 
+    const worksheet = XLSX.utils.json_to_sheet(worksheetData);
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, 'Cảnh báo');
+
+    const excelBuffer = XLSX.write(workbook, { bookType: 'xlsx', type: 'array' });
+    const blob = new Blob([excelBuffer], { type: 'application/octet-stream' });
+    saveAs(blob, `real_time_alerts_${Date.now()}.xlsx`);
+  };
   return (
     <div className="flex flex-col h-full">
       <DashboardHeader title="Lịch sử sự kiện" description="Xem lịch sử các sự kiện an ninh" />
@@ -87,8 +108,8 @@ export default function SecurityHistoryPage() {
               <Calendar className="h-4 w-4 mr-2" />
               Chọn ngày
             </Button>
-            <Button>
-              <Download className="h-4 w-4 mr-2" />
+            <Button onClick={handleExportExcel}>
+              <Download className='h-4 w-4 mr-2' />
               Xuất báo cáo
             </Button>
           </div>

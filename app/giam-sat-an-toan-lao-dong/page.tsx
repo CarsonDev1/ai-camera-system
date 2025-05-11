@@ -9,6 +9,8 @@ import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import * as XLSX from 'xlsx';
+import { saveAs } from 'file-saver';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import {
 	DropdownMenu,
@@ -40,6 +42,7 @@ import { toast } from '@/components/ui/use-toast';
 import { useQueryClient } from '@tanstack/react-query';
 import SafetyAlertsService from '@/services/safety-alert-service';
 import BehaviorAlertsService from '@/services/behavior-alert-service';
+import { validators } from 'tailwind-merge';
 
 export default function SafetyMonitoringPage() {
 	const searchParams = useSearchParams();
@@ -112,22 +115,22 @@ export default function SafetyMonitoringPage() {
 				// Stats data for Behavior tab
 				...(activeTab === 'giam-sat-vi-pham'
 					? [
-							queryClient.fetchQuery({
-								queryKey: ['behaviorAlerts'],
-								queryFn: () => BehaviorAlertsService.getBehaviorAlerts(1, 5, true),
-								staleTime: 0,
-							}),
-							queryClient.fetchQuery({
-								queryKey: ['pendingBehaviorAlerts'],
-								queryFn: () => BehaviorAlertsService.getPendingBehaviorAlerts(),
-								staleTime: 0,
-							}),
-							queryClient.fetchQuery({
-								queryKey: ['resolvedBehaviorAlerts'],
-								queryFn: () => BehaviorAlertsService.getResolvedBehaviorAlerts(),
-								staleTime: 0,
-							}),
-					  ]
+						queryClient.fetchQuery({
+							queryKey: ['behaviorAlerts'],
+							queryFn: () => BehaviorAlertsService.getBehaviorAlerts(1, 5, true),
+							staleTime: 0,
+						}),
+						queryClient.fetchQuery({
+							queryKey: ['pendingBehaviorAlerts'],
+							queryFn: () => BehaviorAlertsService.getPendingBehaviorAlerts(),
+							staleTime: 0,
+						}),
+						queryClient.fetchQuery({
+							queryKey: ['resolvedBehaviorAlerts'],
+							queryFn: () => BehaviorAlertsService.getResolvedBehaviorAlerts(),
+							staleTime: 0,
+						}),
+					]
 					: []),
 			]);
 
@@ -283,6 +286,27 @@ export default function SafetyMonitoringPage() {
 		},
 	];
 
+
+	const handleExportExcel = () => {
+		const worksheetData = violations.map((record) => ({
+			'Loại vi phạm': record.type,
+			'Người vi phạm': record.person,
+			'Mã nhân viên': record.employeeId,
+			'Bộ phận': record.department || '—',
+			'Thời gian': record.time,
+			'Vị trí': record.location,
+			'Mức độ': record.severity,
+			'Trạng thái': record.status,
+		}));
+
+		const worksheet = XLSX.utils.json_to_sheet(worksheetData);
+		const workbook = XLSX.utils.book_new();
+		XLSX.utils.book_append_sheet(workbook, worksheet, 'Cảnh báo');
+
+		const excelBuffer = XLSX.write(workbook, { bookType: 'xlsx', type: 'array' });
+		const blob = new Blob([excelBuffer], { type: 'application/octet-stream' });
+		saveAs(blob, `real_time_alerts_${Date.now()}.xlsx`);
+	};
 	return (
 		<div className='flex flex-col h-full'>
 			<DashboardHeader
@@ -296,21 +320,19 @@ export default function SafetyMonitoringPage() {
 					<div className='grid grid-cols-2 relative z-10'>
 						<button
 							onClick={() => handleTabChange('bao-ho-lao-dong')}
-							className={`py-3 px-6 text-center font-medium transition-all duration-300 ${
-								activeTab === 'bao-ho-lao-dong'
-									? 'text-foreground'
-									: 'text-muted-foreground hover:text-foreground/80'
-							}`}
+							className={`py-3 px-6 text-center font-medium transition-all duration-300 ${activeTab === 'bao-ho-lao-dong'
+								? 'text-foreground'
+								: 'text-muted-foreground hover:text-foreground/80'
+								}`}
 						>
 							Bảo hộ lao động
 						</button>
 						<button
 							onClick={() => handleTabChange('giam-sat-vi-pham')}
-							className={`py-3 px-6 text-center font-medium transition-all duration-300 ${
-								activeTab === 'giam-sat-vi-pham'
-									? 'text-foreground'
-									: 'text-muted-foreground hover:text-foreground/80'
-							}`}
+							className={`py-3 px-6 text-center font-medium transition-all duration-300 ${activeTab === 'giam-sat-vi-pham'
+								? 'text-foreground'
+								: 'text-muted-foreground hover:text-foreground/80'
+								}`}
 						>
 							Giám sát vi phạm
 						</button>
@@ -332,9 +354,8 @@ export default function SafetyMonitoringPage() {
 
 				<div className='relative'>
 					<div
-						className={`space-y-6 transition-all duration-300 ${
-							activeTab === 'bao-ho-lao-dong' ? 'block' : 'hidden  pointer-events-none'
-						}`}
+						className={`space-y-6 transition-all duration-300 ${activeTab === 'bao-ho-lao-dong' ? 'block' : 'hidden  pointer-events-none'
+							}`}
 					>
 						<div className='space-y-6'>
 							<SafetyAlertsStats />
@@ -420,9 +441,8 @@ export default function SafetyMonitoringPage() {
 					</div>
 
 					<div
-						className={`space-y-6 transition-all duration-300 ${
-							activeTab === 'giam-sat-vi-pham' ? 'block' : 'hidden pointer-events-none'
-						}`}
+						className={`space-y-6 transition-all duration-300 ${activeTab === 'giam-sat-vi-pham' ? 'block' : 'hidden pointer-events-none'
+							}`}
 					>
 						<div className='space-y-6'>
 							<div className='flex items-center justify-between'>
@@ -431,7 +451,7 @@ export default function SafetyMonitoringPage() {
 										<Calendar className='h-4 w-4 mr-2' />
 										Chọn ngày
 									</Button>
-									<Button>
+									<Button onClick={handleExportExcel}>
 										<Download className='h-4 w-4 mr-2' />
 										Xuất báo cáo
 									</Button>
