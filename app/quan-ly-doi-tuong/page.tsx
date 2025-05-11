@@ -411,6 +411,38 @@ function EmployeeDetailsDialog({
 								{getDepartmentDisplay(employee?.department)}
 							</p>
 						</div>
+						<div className='flex item gap-1'>
+							{employee?.custom_face_images1 ? (
+								<Image src={employee?.custom_face_images1} width={50} height={50} alt='face1' />
+							) : (
+								<span className='p-3 bg-slate-200 rounded-md'>Ảnh 1</span>
+							)}
+							{employee?.custom_face_images2 ? (
+								<Image src={employee?.custom_face_images2} width={50} height={50} alt='face2' />
+							) : (
+								<span className='p-3 bg-slate-200 rounded-md'>Ảnh 2</span>
+							)}
+							{employee?.custom_face_images3 ? (
+								<Image src={employee?.custom_face_images3} width={50} height={50} alt='face3' />
+							) : (
+								<span className='p-3 bg-slate-200 rounded-md'>Ảnh 3</span>
+							)}
+							{employee?.custom_face_images4 ? (
+								<Image src={employee?.custom_face_images1} width={50} height={50} alt='face4' />
+							) : (
+								<span className='p-3 bg-slate-200 rounded-md'>Ảnh 4</span>
+							)}
+							{employee?.custom_face_images5 ? (
+								<Image src={employee?.custom_face_images1} width={50} height={50} alt='face5' />
+							) : (
+								<span className='p-3 bg-slate-200 rounded-md'>Ảnh 5</span>
+							)}
+							{employee?.custom_face_images6 ? (
+								<Image src={employee?.custom_face_images6} width={50} height={50} alt='face6' />
+							) : (
+								<span className='p-3 bg-slate-200 rounded-md'>Ảnh 6</span>
+							)}
+						</div>
 					</div>
 
 					{/* Thông tin chi tiết */}

@@ -8,37 +8,16 @@ import { useQuery } from '@tanstack/react-query';
 import ViolationTypeService, { ViolationTypeDistributionData } from '@/services/violation-type-service';
 import { CardDescription, CardTitle } from '@/components/ui/card';
 
-// Common violation types that we expect to see
-const COMMON_VIOLATION_TYPES = [
-	'Không đội mũ',
-	'Không đeo găng tay',
-	'Không mặc áo bảo hộ',
-	'Sử dụng điện thoại',
-	'Hút thuốc',
-	'Đánh nhau',
-];
-
 // Colors for each violation type
-const VIOLATION_COLORS = {
+const VIOLATION_COLORS: Record<string, string> = {
 	'Không đội mũ': '#ef4444',
 	'Không đeo găng tay': '#f97316',
 	'Không mặc áo bảo hộ': '#eab308',
+	'Không mang giày bảo hộ': '#22c55e',
 	'Sử dụng điện thoại': '#3b82f6',
 	'Hút thuốc': '#8b5cf6',
 	'Đánh nhau': '#ec4899',
-};
-
-// Generate week labels based on a date range
-const generateWeekLabels = (startDate: Date, numWeeks: number): string[] => {
-	const labels = [];
-	const currentDate = new Date(startDate);
-
-	for (let i = 0; i < numWeeks; i++) {
-		labels.push(`Tuần ${i + 1}`);
-		currentDate.setDate(currentDate.getDate() + 7);
-	}
-
-	return labels;
+	// Add more colors for other violation types if needed
 };
 
 // Custom tooltip component
@@ -64,32 +43,72 @@ const CustomTooltip = ({ active, payload, label }: any) => {
 	return null;
 };
 
-// Format data function
-const formatDataForChart = (response: ViolationTypeDistributionData) => {
-	// Create a map of violation types from the API response
-	const violationMap = new Map();
-	response.data.forEach((item) => {
-		violationMap.set(item.violation_type, item.cnt);
-	});
+// Generate default color for violation types not in the predefined colors
+const getViolationColor = (violationType: string): string => {
+	if (VIOLATION_COLORS[violationType]) {
+		return VIOLATION_COLORS[violationType];
+	}
+	// Generate a color based on the violation type string
+	const hash = violationType.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
+	const hue = hash % 360;
+	return `hsl(${hue}, 70%, 50%)`;
+};
 
-	// Generate 6 weeks of data for demonstration
-	const weekLabels = generateWeekLabels(new Date(), 6);
+// Format data based on period type
+const formatDataForChart = (response: ViolationTypeDistributionData, periodType: 'day' | 'week' | 'month') => {
+	const violationTypes = response.data.map((item) => item.violation_type);
 
-	return weekLabels.map((week, index) => {
-		// Create a base object with the week name
-		const weekData: any = { name: week };
+	if (periodType === 'month') {
+		// For month view, use week data from API
+		const weeks = response.data[0]?.weeks || [];
 
-		// Add data for each violation type
-		COMMON_VIOLATION_TYPES.forEach((type) => {
-			const baseValue = violationMap.get(type) || 0;
+		return weeks.map((week: any) => {
+			const weekData: any = { name: week.week };
 
-			// Create slight variations for each week to simulate historical data
-			const variationFactor = 0.7 + Math.random() * 0.6; // Between 0.7 and 1.3
-			weekData[type] = baseValue > 0 ? Math.round(baseValue * variationFactor) : 0;
+			// Add data for each violation type
+			response.data.forEach((violation) => {
+				const weekItem = violation.weeks.find((w: any) => w.week === week.week);
+				weekData[violation.violation_type] = weekItem?.count || 0;
+			});
+
+			return weekData;
 		});
+	} else if (periodType === 'week') {
+		// For week view, show days of the week
+		const days = ['Thứ 2', 'Thứ 3', 'Thứ 4', 'Thứ 5', 'Thứ 6', 'Thứ 7', 'Chủ nhật'];
 
-		return weekData;
-	});
+		return days.map((day) => {
+			const dayData: any = { name: day };
+
+			// Simulate data for each day (in a real app, this would come from API)
+			violationTypes.forEach((type) => {
+				const baseValue = response.data.find((v) => v.violation_type === type)?.cnt || 0;
+				// Create variation for each day
+				dayData[type] = Math.round((baseValue * (0.5 + Math.random() * 0.5)) / 7);
+			});
+
+			return dayData;
+		});
+	} else {
+		// For day view, show hourly data
+		const hours = Array.from({ length: 24 }, (_, i) => `${i}:00`);
+
+		return hours.map((hour) => {
+			const hourData: any = { name: hour };
+
+			// Simulate hourly data (in a real app, this would come from API)
+			violationTypes.forEach((type) => {
+				const baseValue = response.data.find((v) => v.violation_type === type)?.cnt || 0;
+				// Create variation for each hour with higher values during work hours
+				const hourNum = parseInt(hour);
+				const isWorkHour = hourNum >= 8 && hourNum <= 17;
+				const factor = isWorkHour ? 0.8 + Math.random() * 0.4 : 0.1 + Math.random() * 0.2;
+				hourData[type] = Math.round((baseValue * factor) / 24);
+			});
+
+			return hourData;
+		});
+	}
 };
 
 export function SafetyComplianceChart() {
@@ -108,7 +127,8 @@ export function SafetyComplianceChart() {
 	});
 
 	// Format the data for the chart
-	const chartData = violationData ? formatDataForChart(violationData) : [];
+	const chartData = violationData ? formatDataForChart(violationData, periodType) : [];
+	const violationTypes = violationData?.data.map((item) => item.violation_type) || [];
 
 	const handlePeriodChange = (period: 'day' | 'week' | 'month') => {
 		setPeriodType(period);
@@ -179,19 +199,27 @@ export function SafetyComplianceChart() {
 					}}
 				>
 					<CartesianGrid strokeDasharray='3 3' stroke='#f0f0f0' />
-					<XAxis dataKey='name' stroke='#888888' fontSize={12} tickLine={false} axisLine={false} />
+					<XAxis
+						dataKey='name'
+						stroke='#888888'
+						fontSize={12}
+						tickLine={false}
+						axisLine={false}
+						angle={periodType === 'day' ? -45 : 0}
+						textAnchor={periodType === 'day' ? 'end' : 'middle'}
+						height={periodType === 'day' ? 60 : 30}
+					/>
 					<YAxis stroke='#888888' fontSize={12} tickLine={false} axisLine={false} />
 					<Tooltip content={<CustomTooltip />} />
-					<Legend wrapperStyle={{ fontSize: '12px' }} />
+					<Legend
+						wrapperStyle={{ fontSize: '12px', paddingTop: '20px' }}
+						verticalAlign='bottom'
+						height={36}
+					/>
 
-					{/* Dynamically render bars for each violation type that has data */}
-					{COMMON_VIOLATION_TYPES.map((type, index) => (
-						<Bar
-							key={index}
-							dataKey={type}
-							fill={VIOLATION_COLORS[type as keyof typeof VIOLATION_COLORS]}
-							radius={[4, 4, 0, 0]}
-						/>
+					{/* Dynamically render bars for each violation type from API */}
+					{violationTypes.map((type, index) => (
+						<Bar key={index} dataKey={type} fill={getViolationColor(type)} radius={[4, 4, 0, 0]} />
 					))}
 				</BarChart>
 			</ResponsiveContainer>

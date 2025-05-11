@@ -4,6 +4,7 @@ export interface ViolationType {
   violation_type: string;
   cnt: number;
   percent: number;
+  weeks: any
 }
 
 export interface ViolationTypeDistributionData {
@@ -12,6 +13,7 @@ export interface ViolationTypeDistributionData {
   period_end: string;
   total: number;
   data: ViolationType[];
+  weeks: any
 }
 
 export interface ViolationTypeDistributionResponse {
@@ -41,7 +43,8 @@ const ViolationTypeService = {
         period_start: '',
         period_end: '',
         total: 0,
-        data: []
+        data: [],
+        weeks: ''
       };
     }
   }

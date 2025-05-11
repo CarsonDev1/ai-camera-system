@@ -129,10 +129,10 @@ export default function GroupManagementPage() {
 					</div>
 					<Dialog open={open} onOpenChange={setOpen}>
 						<DialogTrigger asChild>
-							<Button>
+							{/* <Button>
 								<Plus className='h-4 w-4 mr-2' />
 								Thêm nhóm
-							</Button>
+							</Button> */}
 						</DialogTrigger>
 						<DialogContent className='sm:max-w-[425px]'>
 							<DialogHeader>
