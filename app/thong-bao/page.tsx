@@ -499,6 +499,48 @@ export default function NotificationsPage() {
 		</>
 	);
 
+	// Get status icon
+	const getStatusIcon = (status: string) => {
+		switch (status) {
+			case 'pending':
+				return <Bell className='h-4 w-4 text-blue-600' />;
+			case 'processing':
+				return <Clock className='h-4 w-4 text-yellow-600' />;
+			case 'processed':
+				return <CheckCircle2 className='h-4 w-4 text-green-600' />;
+			default:
+				return null;
+		}
+	};
+
+	// Get status label
+	const getStatusLabel = (status: string) => {
+		switch (status) {
+			case 'pending':
+				return 'Chưa xử lý';
+			case 'processing':
+				return 'Đang xử lý';
+			case 'processed':
+				return 'Đã xử lý';
+			default:
+				return '';
+		}
+	};
+
+	// Get status color
+	const getStatusColor = (status: string) => {
+		switch (status) {
+			case 'pending':
+				return 'text-blue-600';
+			case 'processing':
+				return 'text-yellow-600';
+			case 'processed':
+				return 'text-green-600';
+			default:
+				return '';
+		}
+	};
+
 	return (
 		<div className='flex flex-col h-full'>
 			<DashboardHeader
@@ -817,72 +859,6 @@ export default function NotificationsPage() {
 										</div>
 									</PopoverContent>
 								</Popover>
-
-								{/* Active filters display */}
-								{/* {(isDateFilterActive ||
-									selectedStatus !== 'all' ||
-									searchQuery ||
-									Object.entries(titleFilters).some(([key, value]) => key !== 'all' && value) ||
-									Object.entries(sourceFilters).some(([key, value]) => key !== 'all' && value)) && (
-									<div className='flex items-center gap-2 ml-2'>
-										<span className='text-sm text-muted-foreground'>Bộ lọc:</span>
-										{isDateFilterActive && (
-											<Badge variant='outline' className='flex items-center gap-1'>
-												<Calendar className='h-3 w-3' />
-												{formatDateRange()}
-												<X className='h-3 w-3 cursor-pointer' onClick={clearDateFilter} />
-											</Badge>
-										)}
-										{selectedStatus !== 'all' && (
-											<Badge variant='outline' className='flex items-center gap-1'>
-												<Filter className='h-3 w-3' />
-												{selectedStatus === 'pending'
-													? 'Chưa xử lý'
-													: selectedStatus === 'processing'
-													? 'Đang xử lý'
-													: 'Đã xử lý'}
-												<X
-													className='h-3 w-3 cursor-pointer'
-													onClick={() => setSelectedStatus('all')}
-												/>
-											</Badge>
-										)}
-										{searchQuery && (
-											<Badge variant='outline' className='flex items-center gap-1'>
-												<Search className='h-3 w-3' />
-												{searchQuery}
-												<X
-													className='h-3 w-3 cursor-pointer'
-													onClick={() => setSearchQuery('')}
-												/>
-											</Badge>
-										)}
-										{Object.entries(titleFilters).some(
-											([key, value]) => key !== 'all' && value
-										) && (
-											<Badge variant='outline' className='flex items-center gap-1'>
-												<Filter className='h-3 w-3' />
-												Tiêu đề tùy chỉnh
-												<X
-													className='h-3 w-3 cursor-pointer'
-													onClick={() => handleTitleFilterChange('all')}
-												/>
-											</Badge>
-										)}
-										{Object.entries(sourceFilters).some(
-											([key, value]) => key !== 'all' && value
-										) && (
-											<Badge variant='outline' className='flex items-center gap-1'>
-												<Filter className='h-3 w-3' />
-												Nguồn tùy chỉnh
-												<X
-													className='h-3 w-3 cursor-pointer'
-													onClick={() => handleSourceFilterChange('all')}
-												/>
-											</Badge>
-										)}
-									</div>
-								)} */}
 							</div>
 						</div>
 						<div className='rounded-md border'>
@@ -895,7 +871,6 @@ export default function NotificationsPage() {
 										<TableHead>Thời gian</TableHead>
 										<TableHead>Nguồn</TableHead>
 										<TableHead>Trạng thái</TableHead>
-										<TableHead className='w-[80px]'></TableHead>
 									</TableRow>
 								</TableHeader>
 								<TableBody>
@@ -980,120 +955,48 @@ export default function NotificationsPage() {
 												<TableCell>{notification.time}</TableCell>
 												<TableCell>{notification.source}</TableCell>
 												<TableCell>
-													<Badge
-														variant='outline'
-														className={
-															notification.status === 'pending'
-																? 'bg-blue-50 text-blue-700'
-																: notification.status === 'processing'
-																? 'bg-yellow-50 text-yellow-700'
-																: 'bg-gray-50 text-gray-700'
-														}
-													>
-														{notification.status === 'pending'
-															? 'Chưa xử lý'
-															: notification.status === 'processing'
-															? 'Đang xử lý'
-															: 'Đã xử lý'}
-													</Badge>
-												</TableCell>
-												<TableCell>
+													{/* Status dropdown */}
 													<DropdownMenu>
 														<DropdownMenuTrigger asChild>
 															<Button
-																variant='ghost'
-																className='h-8 w-8 p-0'
-																aria-label='Mở menu'
+																variant='outline'
+																size='sm'
+																className='flex items-center gap-2'
 																disabled={updateStatusMutation.isPending || isLoading}
 															>
-																<MoreHorizontal className='h-4 w-4' />
+																{getStatusIcon(notification.status)}
+																<span className={getStatusColor(notification.status)}>
+																	{getStatusLabel(notification.status)}
+																</span>
 															</Button>
 														</DropdownMenuTrigger>
 														<DropdownMenuContent align='end'>
-															<DropdownMenuLabel>Hành động</DropdownMenuLabel>
-															<DropdownMenuSeparator />
-															<DropdownMenuItem>Xem chi tiết</DropdownMenuItem>
-
-															{notification.status === 'pending' ? (
-																<>
-																	<DropdownMenuItem
-																		onClick={() =>
-																			handleStatusUpdate(
-																				notification.id,
-																				'Đang xử lý'
-																			)
-																		}
-																	>
-																		<Clock className='h-4 w-4 mr-2 text-yellow-600' />
-																		Đánh dấu đang xử lý
-																	</DropdownMenuItem>
-																	<DropdownMenuItem
-																		onClick={() =>
-																			handleStatusUpdate(
-																				notification.id,
-																				'Đã xử lý'
-																			)
-																		}
-																	>
-																		<CheckCircle2 className='h-4 w-4 mr-2 text-green-600' />
-																		Đánh dấu đã xử lý
-																	</DropdownMenuItem>
-																</>
-															) : notification.status === 'processing' ? (
-																<>
-																	<DropdownMenuItem
-																		onClick={() =>
-																			handleStatusUpdate(
-																				notification.id,
-																				'Chưa xử lý'
-																			)
-																		}
-																	>
-																		<Bell className='h-4 w-4 mr-2 text-blue-600' />
-																		Đánh dấu chưa xử lý
-																	</DropdownMenuItem>
-																	<DropdownMenuItem
-																		onClick={() =>
-																			handleStatusUpdate(
-																				notification.id,
-																				'Đã xử lý'
-																			)
-																		}
-																	>
-																		<CheckCircle2 className='h-4 w-4 mr-2 text-green-600' />
-																		Đánh dấu đã xử lý
-																	</DropdownMenuItem>
-																</>
-															) : (
-																<>
-																	<DropdownMenuItem
-																		onClick={() =>
-																			handleStatusUpdate(
-																				notification.id,
-																				'Chưa xử lý'
-																			)
-																		}
-																	>
-																		<Bell className='h-4 w-4 mr-2 text-blue-600' />
-																		Đánh dấu chưa xử lý
-																	</DropdownMenuItem>
-																	<DropdownMenuItem
-																		onClick={() =>
-																			handleStatusUpdate(
-																				notification.id,
-																				'Đang xử lý'
-																			)
-																		}
-																	>
-																		<Clock className='h-4 w-4 mr-2 text-yellow-600' />
-																		Đánh dấu đang xử lý
-																	</DropdownMenuItem>
-																</>
-															)}
-
-															<DropdownMenuItem>
-																<Trash2 className='h-4 w-4 mr-2 text-red-600' />
-																Xóa thông báo
+															<DropdownMenuItem
+																onClick={() =>
+																	handleStatusUpdate(notification.id, 'Chưa xử lý')
+																}
+																disabled={notification.status === 'pending'}
+															>
+																<Bell className='h-4 w-4 mr-2 text-blue-600' />
+																Chưa xử lý
+															</DropdownMenuItem>
+															<DropdownMenuItem
+																onClick={() =>
+																	handleStatusUpdate(notification.id, 'Đang xử lý')
+																}
+																disabled={notification.status === 'processing'}
+															>
+																<Clock className='h-4 w-4 mr-2 text-yellow-600' />
+																Đang xử lý
+															</DropdownMenuItem>
+															<DropdownMenuItem
+																onClick={() =>
+																	handleStatusUpdate(notification.id, 'Đã xử lý')
+																}
+																disabled={notification.status === 'processed'}
+															>
+																<CheckCircle2 className='h-4 w-4 mr-2 text-green-600' />
+																Đã xử lý
 															</DropdownMenuItem>
 														</DropdownMenuContent>
 													</DropdownMenu>
