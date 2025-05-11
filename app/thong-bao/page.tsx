@@ -14,6 +14,8 @@ import {
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Label } from '@/components/ui/label';
 import {
 	MoreHorizontal,
 	Search,
@@ -32,6 +34,7 @@ import {
 	CheckCircle2,
 	Clock,
 	Flame,
+	FilterIcon,
 } from 'lucide-react';
 import NotificationOverviewCards from '@/components/notification-overview';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
@@ -47,11 +50,31 @@ import { Skeleton } from '@/components/ui/skeleton';
 export default function NotificationsPage() {
 	// State for search and filters
 	const [searchQuery, setSearchQuery] = useState('');
-	const [selectedSource, setSelectedSource] = useState('all');
+	const [selectedStatus, setSelectedStatus] = useState('all');
 	const [dateRange, setDateRange] = useState({ from: null, to: null });
 	const [isDateFilterActive, setIsDateFilterActive] = useState(false);
 	const [isCalendarOpen, setIsCalendarOpen] = useState(false);
 	const [isRefreshing, setIsRefreshing] = useState(false);
+
+	// Advanced filter states
+	const [isFilterOpen, setIsFilterOpen] = useState(false);
+	const [titleFilters, setTitleFilters] = useState({
+		all: true,
+		intrusion: false,
+		violation: false,
+		labor_safety: false,
+		fire_warning: false,
+	});
+
+	const [sourceFilters, setSourceFilters] = useState({
+		all: true,
+		behavior: false,
+		safety: false,
+		security: false,
+		fire: false,
+		system: false,
+		report: false,
+	});
 
 	// Get query client for cache invalidation
 	const queryClient = useQueryClient();
@@ -236,7 +259,7 @@ export default function NotificationsPage() {
 				? `Phát hiện ${alarm.loai_vi_pham} tại ${alarm.khu_vuc || alarm.cam_id || 'không xác định'}`
 				: `Phát hiện ${alarm.alarm_type} tại ${alarm.khu_vuc || alarm.cam_id || 'không xác định'}`,
 			time: new Date(alarm.timestamp).toLocaleString('vi-VN'),
-			timestamp: alarm.timestamp, // Keep the original timestamp for filtering
+			timestamp: alarm.timestamp,
 			source: getNotificationSource(alarm.alarm_type, alarm.loai_vi_pham),
 			status:
 				alarm.trang_thai === 'Chưa xử lý'
@@ -244,6 +267,7 @@ export default function NotificationsPage() {
 					: alarm.trang_thai === 'Đang xử lý'
 					? 'processing'
 					: 'processed',
+			alarmType: alarm.alarm_type,
 			original: alarm,
 		};
 	};
@@ -278,6 +302,55 @@ export default function NotificationsPage() {
 		return 'Chọn khoảng thời gian';
 	};
 
+	// Handle title filter changes
+	const handleTitleFilterChange = (filter: any) => {
+		if (filter === 'all') {
+			setTitleFilters({
+				all: true,
+				intrusion: false,
+				violation: false,
+				labor_safety: false,
+				fire_warning: false,
+			});
+		} else {
+			setTitleFilters((prev: any) => {
+				const newFilters = { ...prev, [filter]: !prev[filter] };
+				// If all individual filters are unchecked, check 'all'
+				const hasActiveFilter = Object.entries(newFilters).some(([key, value]) => key !== 'all' && value);
+				newFilters.all = !hasActiveFilter;
+				return newFilters;
+			});
+		}
+	};
+
+	// Handle source filter changes
+	const handleSourceFilterChange = (filter: string) => {
+		if (filter === 'all') {
+			setSourceFilters({
+				all: true,
+				behavior: false,
+				safety: false,
+				security: false,
+				fire: false,
+				system: false,
+				report: false,
+			});
+		} else {
+			setSourceFilters((prev: any) => {
+				const newFilters = { ...prev, [filter]: !prev[filter] };
+				// If all individual filters are unchecked, check 'all'
+				const hasActiveFilter = Object.entries(newFilters).some(([key, value]) => key !== 'all' && value);
+				newFilters.all = !hasActiveFilter;
+				return newFilters;
+			});
+		}
+	};
+
+	// Apply advanced filter button handler
+	const applyAdvancedFilters = () => {
+		setIsFilterOpen(false);
+	};
+
 	// Apply filters
 	const filteredNotifications = notifications.filter((notification) => {
 		// Apply search filter
@@ -286,12 +359,12 @@ export default function NotificationsPage() {
 			notification.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
 			notification.message.toLowerCase().includes(searchQuery.toLowerCase());
 
-		// Apply source filter
-		const matchesSource =
-			selectedSource === 'all' ||
-			(selectedSource === 'behavior' && notification.source === 'Giám sát hành vi') ||
-			(selectedSource === 'safety' && notification.source === 'Giám sát bảo hộ') ||
-			(selectedSource === 'security' && notification.source === 'Giám sát an ninh');
+		// Apply status filter
+		const matchesStatus =
+			selectedStatus === 'all' ||
+			(selectedStatus === 'pending' && notification.status === 'pending') ||
+			(selectedStatus === 'processing' && notification.status === 'processing') ||
+			(selectedStatus === 'processed' && notification.status === 'processed');
 
 		// Apply date filter
 		let matchesDate = true;
@@ -304,7 +377,25 @@ export default function NotificationsPage() {
 			}
 		}
 
-		return matchesSearch && matchesSource && matchesDate;
+		// Apply title filters
+		const matchesTitle =
+			titleFilters.all ||
+			(titleFilters.intrusion && notification.alarmType === 'Xâm Nhập Trái Phép') ||
+			(titleFilters.violation && notification.alarmType === 'Hành Vi Vi Phạm') ||
+			(titleFilters.labor_safety && notification.alarmType === 'An Toàn Lao Động') ||
+			(titleFilters.fire_warning && notification.alarmType === 'Cảnh Báo Cháy');
+
+		// Apply source filters
+		const matchesSource =
+			sourceFilters.all ||
+			(sourceFilters.behavior && notification.source === 'Giám sát hành vi') ||
+			(sourceFilters.safety && notification.source === 'Giám sát bảo hộ') ||
+			(sourceFilters.security && notification.source === 'Giám sát an ninh') ||
+			(sourceFilters.fire && notification.source === 'Giám sát cháy nổ') ||
+			(sourceFilters.system && notification.source === 'Hệ thống') ||
+			(sourceFilters.report && notification.source === 'Báo cáo');
+
+		return matchesSearch && matchesStatus && matchesDate && matchesTitle && matchesSource;
 	});
 
 	// Calculate stats for the UI (for source distribution)
@@ -557,23 +648,182 @@ export default function NotificationsPage() {
 								</div>
 							</div>
 							<div className='flex items-center gap-2'>
-								<Select value={selectedSource} onValueChange={setSelectedSource} disabled={isLoading}>
+								{/* Status filter */}
+								<Select value={selectedStatus} onValueChange={setSelectedStatus} disabled={isLoading}>
 									<SelectTrigger className='w-[180px]'>
-										<SelectValue placeholder='Nguồn' />
+										<SelectValue placeholder='Trạng thái' />
 									</SelectTrigger>
 									<SelectContent>
 										<SelectItem value='all'>Tất cả</SelectItem>
-										<SelectItem value='behavior'>Giám sát hành vi</SelectItem>
-										<SelectItem value='safety'>Giám sát bảo hộ</SelectItem>
-										<SelectItem value='security'>Giám sát an ninh</SelectItem>
-										<SelectItem value='movement'>Giám sát di chuyển</SelectItem>
-										<SelectItem value='system'>Hệ thống</SelectItem>
-										<SelectItem value='report'>Báo cáo</SelectItem>
+										<SelectItem value='pending'>Chưa xử lý</SelectItem>
+										<SelectItem value='processing'>Đang xử lý</SelectItem>
+										<SelectItem value='processed'>Đã xử lý</SelectItem>
 									</SelectContent>
 								</Select>
 
+								{/* Advanced filter popover */}
+								<Popover open={isFilterOpen} onOpenChange={setIsFilterOpen}>
+									<PopoverTrigger asChild>
+										<Button
+											variant='ghost'
+											className='p-3 rounded-md bg-slate-100 hover:bg-slate-200'
+											disabled={isLoading}
+										>
+											<FilterIcon className='size-4' />
+										</Button>
+									</PopoverTrigger>
+									<PopoverContent className='w-80' align='end'>
+										<div className='space-y-4'>
+											<div className='font-medium text-sm'>Bộ lọc nâng cao</div>
+
+											{/* Title filters */}
+											<div className='space-y-2'>
+												<Label className='text-sm font-medium'>Tiêu đề</Label>
+												<div className='space-y-2'>
+													<div className='flex items-center space-x-2'>
+														<Checkbox
+															id='all-title'
+															checked={titleFilters.all}
+															onCheckedChange={() => handleTitleFilterChange('all')}
+														/>
+														<Label htmlFor='all-title' className='text-sm font-normal'>
+															Tất cả
+														</Label>
+													</div>
+													<div className='flex items-center space-x-2'>
+														<Checkbox
+															id='intrusion'
+															checked={titleFilters.intrusion}
+															onCheckedChange={() => handleTitleFilterChange('intrusion')}
+														/>
+														<Label htmlFor='intrusion' className='text-sm font-normal'>
+															Cảnh báo hành vi cấm
+														</Label>
+													</div>
+													<div className='flex items-center space-x-2'>
+														<Checkbox
+															id='violation'
+															checked={titleFilters.violation}
+															onCheckedChange={() => handleTitleFilterChange('violation')}
+														/>
+														<Label htmlFor='violation' className='text-sm font-normal'>
+															Cảnh báo vi phạm
+														</Label>
+													</div>
+													<div className='flex items-center space-x-2'>
+														<Checkbox
+															id='labor-safety'
+															checked={titleFilters.labor_safety}
+															onCheckedChange={() =>
+																handleTitleFilterChange('labor_safety')
+															}
+														/>
+														<Label htmlFor='labor-safety' className='text-sm font-normal'>
+															Cảnh báo nhật ký thông
+														</Label>
+													</div>
+													<div className='flex items-center space-x-2'>
+														<Checkbox
+															id='fire-warning'
+															checked={titleFilters.fire_warning}
+															onCheckedChange={() =>
+																handleTitleFilterChange('fire_warning')
+															}
+														/>
+														<Label htmlFor='fire-warning' className='text-sm font-normal'>
+															Báo cảo hàng ngày
+														</Label>
+													</div>
+												</div>
+											</div>
+
+											{/* Source filters */}
+											<div className='space-y-2'>
+												<Label className='text-sm font-medium'>Nguồn</Label>
+												<div className='space-y-2'>
+													<div className='flex items-center space-x-2'>
+														<Checkbox
+															id='all-source'
+															checked={sourceFilters.all}
+															onCheckedChange={() => handleSourceFilterChange('all')}
+														/>
+														<Label htmlFor='all-source' className='text-sm font-normal'>
+															Tất cả
+														</Label>
+													</div>
+													<div className='flex items-center space-x-2'>
+														<Checkbox
+															id='behavior'
+															checked={sourceFilters.behavior}
+															onCheckedChange={() => handleSourceFilterChange('behavior')}
+														/>
+														<Label htmlFor='behavior' className='text-sm font-normal'>
+															Giám sát hành vi
+														</Label>
+													</div>
+													<div className='flex items-center space-x-2'>
+														<Checkbox
+															id='safety'
+															checked={sourceFilters.safety}
+															onCheckedChange={() => handleSourceFilterChange('safety')}
+														/>
+														<Label htmlFor='safety' className='text-sm font-normal'>
+															Giám sát an toàn
+														</Label>
+													</div>
+													<div className='flex items-center space-x-2'>
+														<Checkbox
+															id='security'
+															checked={sourceFilters.security}
+															onCheckedChange={() => handleSourceFilterChange('security')}
+														/>
+														<Label htmlFor='security' className='text-sm font-normal'>
+															Giám sát an ninh
+														</Label>
+													</div>
+													<div className='flex items-center space-x-2'>
+														<Checkbox
+															id='system'
+															checked={sourceFilters.system}
+															onCheckedChange={() => handleSourceFilterChange('system')}
+														/>
+														<Label htmlFor='system' className='text-sm font-normal'>
+															Hệ thống
+														</Label>
+													</div>
+													<div className='flex items-center space-x-2'>
+														<Checkbox
+															id='report'
+															checked={sourceFilters.report}
+															onCheckedChange={() => handleSourceFilterChange('report')}
+														/>
+														<Label htmlFor='report' className='text-sm font-normal'>
+															Báo cáo
+														</Label>
+													</div>
+												</div>
+											</div>
+
+											{/* Apply button */}
+											<div className='flex justify-end'>
+												<Button
+													size='sm'
+													onClick={applyAdvancedFilters}
+													className='bg-black text-white hover:bg-gray-800'
+												>
+													Áp dụng
+												</Button>
+											</div>
+										</div>
+									</PopoverContent>
+								</Popover>
+
 								{/* Active filters display */}
-								{(isDateFilterActive || selectedSource !== 'all' || searchQuery) && (
+								{/* {(isDateFilterActive ||
+									selectedStatus !== 'all' ||
+									searchQuery ||
+									Object.entries(titleFilters).some(([key, value]) => key !== 'all' && value) ||
+									Object.entries(sourceFilters).some(([key, value]) => key !== 'all' && value)) && (
 									<div className='flex items-center gap-2 ml-2'>
 										<span className='text-sm text-muted-foreground'>Bộ lọc:</span>
 										{isDateFilterActive && (
@@ -583,19 +833,17 @@ export default function NotificationsPage() {
 												<X className='h-3 w-3 cursor-pointer' onClick={clearDateFilter} />
 											</Badge>
 										)}
-										{selectedSource !== 'all' && (
+										{selectedStatus !== 'all' && (
 											<Badge variant='outline' className='flex items-center gap-1'>
 												<Filter className='h-3 w-3' />
-												{selectedSource === 'behavior'
-													? 'Giám sát hành vi'
-													: selectedSource === 'safety'
-													? 'Giám sát bảo hộ'
-													: selectedSource === 'security'
-													? 'Giám sát an ninh'
-													: selectedSource}
+												{selectedStatus === 'pending'
+													? 'Chưa xử lý'
+													: selectedStatus === 'processing'
+													? 'Đang xử lý'
+													: 'Đã xử lý'}
 												<X
 													className='h-3 w-3 cursor-pointer'
-													onClick={() => setSelectedSource('all')}
+													onClick={() => setSelectedStatus('all')}
 												/>
 											</Badge>
 										)}
@@ -609,8 +857,32 @@ export default function NotificationsPage() {
 												/>
 											</Badge>
 										)}
+										{Object.entries(titleFilters).some(
+											([key, value]) => key !== 'all' && value
+										) && (
+											<Badge variant='outline' className='flex items-center gap-1'>
+												<Filter className='h-3 w-3' />
+												Tiêu đề tùy chỉnh
+												<X
+													className='h-3 w-3 cursor-pointer'
+													onClick={() => handleTitleFilterChange('all')}
+												/>
+											</Badge>
+										)}
+										{Object.entries(sourceFilters).some(
+											([key, value]) => key !== 'all' && value
+										) && (
+											<Badge variant='outline' className='flex items-center gap-1'>
+												<Filter className='h-3 w-3' />
+												Nguồn tùy chỉnh
+												<X
+													className='h-3 w-3 cursor-pointer'
+													onClick={() => handleSourceFilterChange('all')}
+												/>
+											</Badge>
+										)}
 									</div>
-								)}
+								)} */}
 							</div>
 						</div>
 						<div className='rounded-md border'>
