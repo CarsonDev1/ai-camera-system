@@ -78,7 +78,7 @@ const NotificationOverviewCards = () => {
 					<CardContent className='p-6'>
 						<div className='flex items-center justify-between text-gray-400'>
 							<div>
-								<p className='text-sm font-medium mb-1'>Tổng số thông báo</p>
+								<p className='text-sm font-medium mb-1'>Tổng số thông báo trong tháng</p>
 								<div className='flex items-baseline gap-2'>
 									<h2 className='text-3xl font-bold'>--</h2>
 								</div>
@@ -139,7 +139,9 @@ const NotificationOverviewCards = () => {
 				<CardContent className='p-6'>
 					<div className='flex items-center justify-between'>
 						<div>
-							<p className='text-sm font-medium text-muted-foreground mb-1'>Tổng số thông báo</p>
+							<p className='text-sm font-medium text-muted-foreground mb-1'>
+								Tổng số thông báo trong tháng
+							</p>
 							<div className='flex items-baseline gap-2'>
 								<h2 className='text-3xl font-bold'>{notificationsData.total.count}</h2>
 								{notificationsData.total.delta !== undefined && (
@@ -169,7 +171,7 @@ const NotificationOverviewCards = () => {
 				<CardContent className='p-6'>
 					<div className='flex items-center justify-between'>
 						<div>
-							<p className='text-sm font-medium text-muted-foreground mb-1'>Chưa xử lý</p>
+							<p className='text-sm font-medium text-muted-foreground mb-1'>Chưa xử lý trong tháng</p>
 							<div className='flex items-baseline gap-2'>
 								<h2 className='text-3xl font-bold'>{notificationsData.pending.count}</h2>
 								{notificationsData.pending.delta !== undefined && (
@@ -197,7 +199,7 @@ const NotificationOverviewCards = () => {
 				<CardContent className='p-6'>
 					<div className='flex items-center justify-between'>
 						<div>
-							<p className='text-sm font-medium text-muted-foreground mb-1'>Đã xử lý</p>
+							<p className='text-sm font-medium text-muted-foreground mb-1'>Đã xử lý trong tháng</p>
 							<div className='flex items-baseline gap-2'>
 								<h2 className='text-3xl font-bold'>{processedCount}</h2>
 								{processedDelta !== undefined && (
