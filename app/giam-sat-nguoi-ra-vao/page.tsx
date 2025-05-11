@@ -62,14 +62,20 @@ interface EmployeeCheckinRecord {
 	name: string;
 	employee: string;
 	employee_name: string;
-	log_type: 'IN' | 'OUT';
+	log_type: 'IN' | 'OUT' | '' | null;
 	time: string;
+	device_id: string | null;
 	custom_late_by: number | null;
 	custom_early_by: number | null;
+	department: string | null;
+	custom_late_by_formatted: string | null;
+	custom_early_by_formatted: string | null;
 }
 
 interface EmployeeCheckinResponse {
-	data: EmployeeCheckinRecord[];
+	message: {
+		data: EmployeeCheckinRecord[];
+	};
 }
 
 interface AccessRecord {
@@ -80,7 +86,9 @@ interface AccessRecord {
 	time: string;
 	location: string;
 	direction: 'in' | 'out';
-	method: string;
+	shift: string;
+	custom_late_by_formatted: any;
+	custom_early_by_formatted: any;
 }
 
 interface PaginationParams {
@@ -94,24 +102,31 @@ const EmployeeCheckinService = {
 		paginationParams: PaginationParams = { limitStart: 0, limitPageLength: 10 },
 		filters: Record<string, any> = {}
 	): Promise<{ records: EmployeeCheckinRecord[]; totalCount: number }> => {
-		const fields = ['name', 'employee', 'employee_name', 'log_type', 'time', 'custom_late_by', 'custom_early_by'];
+		// Build query parameters
+		const params = new URLSearchParams({
+			limit_page_length: paginationParams.limitPageLength.toString(),
+			limit_start: paginationParams.limitStart.toString(),
+		});
 
-		const fieldsParam = encodeURIComponent(`[${fields.map((field) => `"${field}"`).join(',')}]`);
-		let url = `/resource/Employee%20Checkin?fields=${fieldsParam}&limit_page_length=${paginationParams.limitPageLength}&limit_start=${paginationParams.limitStart}`;
+		// Add filter parameters
+		Object.entries(filters).forEach(([key, value]) => {
+			if (value !== null && value !== undefined && value !== 'all') {
+				params.append(key, value.toString());
+			}
+		});
 
-		// Add any additional filters
-		if (Object.keys(filters).length > 0) {
-			const filtersParam = encodeURIComponent(JSON.stringify(filters));
-			url += `&filters=${filtersParam}`;
-		}
-
+		const url = `/method/fire_alarm_app.custom_api.dashboard_api.get_employee_checkins?${params.toString()}`;
 		const response = await api.get<EmployeeCheckinResponse>(url);
 
-		// Get total count - this is simulated for now
-		const totalCount = Math.max(50, response.data.data.length + 40);
+		// Extract records from response.data.message.data
+		const records = response.data.message.data || [];
+
+		// Since the API doesn't return total count, we'll estimate it
+		// In a real scenario, you might want to make another API call or modify the API to return total count
+		const totalCount = Math.max(50, records.length + 40);
 
 		return {
-			records: response.data.data,
+			records: records,
 			totalCount,
 		};
 	},
@@ -131,30 +146,37 @@ const EmployeeCheckinService = {
 			.toString()
 			.padStart(2, '0')}`;
 
-		// Determine department based on employee ID (for demo purposes)
-		const departments = ['Sản xuất', 'Kỹ thuật', 'Bảo trì', 'Nhân sự', 'Quản lý'];
-		const departmentIndex = parseInt(employeeIdNumber) % departments.length;
-		const department = departments[departmentIndex];
+		// Map device_id to location
+		const locationMap: { [key: string]: string } = {
+			cam_entrance_main_01: 'Cổng chính - Vào',
+			cam_entrance_main_02: 'Cổng chính - Ra',
+			ZkBio: 'Cổng sinh trắc học',
+			default: 'Cổng chưa xác định',
+		};
 
-		// Determine location (for demo purposes)
-		const locations = ['Cổng chính', 'Cổng nhân viên', 'Cổng kho hàng', 'Cổng phụ'];
-		const locationIndex = parseInt(employeeIdNumber) % locations.length;
-		const location = locations[locationIndex];
+		const location = checkin.device_id
+			? locationMap[checkin.device_id] || locationMap['default']
+			: locationMap['default'];
 
-		// Determine authentication method (for demo purposes)
-		const methods = ['Khuôn mặt', 'Vân tay', 'Thẻ từ'];
-		const methodIndex = parseInt(employeeIdNumber) % methods.length;
-		const method = methods[methodIndex];
+		// Determine direction based on log_type or device_id
+		let direction: 'in' | 'out' = 'in';
+		if (checkin.log_type) {
+			direction = checkin.log_type.toLowerCase() === 'out' ? 'out' : 'in';
+		} else if (checkin.device_id && checkin.device_id.includes('02')) {
+			direction = 'out';
+		}
 
 		return {
 			id: checkin.name,
 			name: checkin.employee_name,
 			employeeId: formattedEmployeeId,
-			department: department,
+			department: checkin.department || 'Chưa xác định',
 			time: formattedTime,
 			location: location,
-			direction: checkin.log_type === 'IN' ? 'in' : 'out',
-			method: method,
+			direction: direction,
+			shift: 'Chưa xác định', // API mới không có shift
+			custom_late_by_formatted: checkin.custom_late_by_formatted,
+			custom_early_by_formatted: checkin.custom_early_by_formatted,
 		};
 	},
 
@@ -206,57 +228,50 @@ export default function AccessMonitoringPage() {
 	// Fetch data when component mounts or filters change
 	useEffect(() => {
 		fetchAccessRecords();
-	}, [selectedTab, customDateRange, isFilterByDay, selectedDate, pagination]);
+	}, [selectedTab, customDateRange, isFilterByDay, selectedDate, pagination, departmentFilter, directionFilter]);
 
 	const fetchAccessRecords = async () => {
 		setIsLoading(true);
 		try {
-			let filters = {};
+			let filters: Record<string, any> = {};
 
 			// Apply date filters based on selected tab
 			if (selectedTab === 'today') {
 				const today = new Date();
 				today.setHours(0, 0, 0, 0);
-				filters = {
-					time: ['>=', format(today, 'yyyy-MM-dd')],
-				};
+				filters.start_date = format(today, 'yyyy-MM-dd');
+				filters.end_date = format(today, 'yyyy-MM-dd');
 			} else if (selectedTab === 'week') {
 				const today = new Date();
 				const startOfWeek = new Date(today);
 				startOfWeek.setDate(today.getDate() - today.getDay());
 				startOfWeek.setHours(0, 0, 0, 0);
-				filters = {
-					time: ['>=', format(startOfWeek, 'yyyy-MM-dd')],
-				};
+				filters.start_date = format(startOfWeek, 'yyyy-MM-dd');
+				filters.end_date = format(today, 'yyyy-MM-dd');
 			} else if (selectedTab === 'month') {
 				const today = new Date();
 				const startOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
-				filters = {
-					time: ['>=', format(startOfMonth, 'yyyy-MM-dd')],
-				};
+				filters.start_date = format(startOfMonth, 'yyyy-MM-dd');
+				filters.end_date = format(today, 'yyyy-MM-dd');
 			} else if (selectedTab === 'custom' && customDateRange) {
-				filters = {
-					time: [
-						'between',
-						[
-							format(customDateRange.from, 'yyyy-MM-dd HH:mm:ss'),
-							format(customDateRange.to, 'yyyy-MM-dd HH:mm:ss'),
-						],
-					],
-				};
+				filters.start_date = format(customDateRange.from, 'yyyy-MM-dd');
+				filters.end_date = format(customDateRange.to, 'yyyy-MM-dd');
 			}
 
 			// Override with single day filter if applicable
 			if (isFilterByDay && selectedDate) {
-				const start = new Date(selectedDate);
-				start.setHours(0, 0, 0, 0);
+				filters.start_date = format(selectedDate, 'yyyy-MM-dd');
+				filters.end_date = format(selectedDate, 'yyyy-MM-dd');
+			}
 
-				const end = new Date(selectedDate);
-				end.setHours(23, 59, 59, 999);
+			// Apply department filter
+			if (departmentFilter !== 'all') {
+				filters.department = departmentFilter;
+			}
 
-				filters = {
-					time: ['between', [format(start, 'yyyy-MM-dd HH:mm:ss'), format(end, 'yyyy-MM-dd HH:mm:ss')]],
-				};
+			// Apply direction filter
+			if (directionFilter !== 'all') {
+				filters.log_type = directionFilter.toUpperCase();
 			}
 
 			const { records, totalCount } = await EmployeeCheckinService.getFormattedAccessRecords(pagination, filters);
@@ -496,7 +511,7 @@ export default function AccessMonitoringPage() {
 		}
 	};
 
-	// Filter records based on search input and dropdown selections
+	// Filter records based on search input
 	const getFilteredAccessRecords = () => {
 		return accessRecords.filter((record) => {
 			// Apply search filter
@@ -509,32 +524,7 @@ export default function AccessMonitoringPage() {
 			const searchMatch =
 				searchQuery === '' || searchFields.some((field) => field.includes(searchQuery.toLowerCase()));
 
-			// Apply department filter
-			const departmentMatch =
-				departmentFilter === 'all' || record.department.toLowerCase() === departmentFilter.toLowerCase();
-
-			// Apply direction filter
-			const directionMatch = directionFilter === 'all' || record.direction === directionFilter;
-
-			return searchMatch && departmentMatch && directionMatch;
-		});
-	};
-
-	// Apply search and dropdown filters
-	const handleApplyFilters = () => {
-		// Reset pagination when applying filters
-		setPagination({
-			limitStart: 0,
-			limitPageLength: pagination.limitPageLength,
-		});
-		setCurrentPage(1);
-
-		// Fetch data with filters
-		fetchAccessRecords();
-
-		toast({
-			title: 'Bộ lọc đã được áp dụng',
-			description: 'Dữ liệu đã được lọc theo các tiêu chí đã chọn',
+			return searchMatch;
 		});
 	};
 
@@ -544,7 +534,7 @@ export default function AccessMonitoringPage() {
 		const records = getFilteredAccessRecords();
 
 		// Convert to CSV format
-		const headers = ['Tên', 'Mã nhân viên', 'Bộ phận', 'Thời gian', 'Vị trí', 'Hướng', 'Phương thức'];
+		const headers = ['Tên', 'Mã nhân viên', 'Bộ phận', 'Thời gian', 'Vị trí', 'Hướng', 'Ca làm việc'];
 		const csvContent = [
 			headers.join(','),
 			...records.map((record) =>
@@ -555,7 +545,7 @@ export default function AccessMonitoringPage() {
 					record.time,
 					record.location,
 					record.direction === 'in' ? 'Vào' : 'Ra',
-					record.method,
+					record.shift,
 				].join(',')
 			),
 		].join('\n');
@@ -727,9 +717,6 @@ export default function AccessMonitoringPage() {
 										<SelectItem value='out'>Ra</SelectItem>
 									</SelectContent>
 								</Select>
-								<Button variant='outline' size='icon' onClick={handleApplyFilters}>
-									<Filter className='h-4 w-4' />
-								</Button>
 							</div>
 						</div>
 						<div className='rounded-md border'>
@@ -740,9 +727,10 @@ export default function AccessMonitoringPage() {
 										<TableHead>Mã nhân viên</TableHead>
 										<TableHead>Bộ phận</TableHead>
 										<TableHead>Thời gian</TableHead>
+										<TableHead>Đi trễ</TableHead>
+										<TableHead>Về sớm</TableHead>
 										<TableHead>Vị trí</TableHead>
 										<TableHead>Hướng</TableHead>
-										{/* <TableHead>Phương thức</TableHead> */}
 										<TableHead className='w-[80px]'></TableHead>
 									</TableRow>
 								</TableHeader>
@@ -777,6 +765,20 @@ export default function AccessMonitoringPage() {
 												<TableCell>{record.employeeId}</TableCell>
 												<TableCell>{record.department}</TableCell>
 												<TableCell>{record.time}</TableCell>
+												<TableCell>
+													{record.custom_late_by_formatted ? (
+														<span>{record.custom_late_by_formatted}</span>
+													) : (
+														<span>Chưa xác định</span>
+													)}
+												</TableCell>
+												<TableCell>
+													{record.custom_early_by_formatted ? (
+														<span>{record.custom_early_by_formatted}</span>
+													) : (
+														<span>Chưa xác định</span>
+													)}
+												</TableCell>
 												<TableCell>{record.location}</TableCell>
 												<TableCell>
 													<Badge
@@ -800,20 +802,7 @@ export default function AccessMonitoringPage() {
 														)}
 													</Badge>
 												</TableCell>
-												{/* <TableCell>
-													<Badge
-														variant='outline'
-														className={
-															record.method === 'Khuôn mặt'
-																? 'bg-blue-50 text-blue-700'
-																: record.method === 'Vân tay'
-																? 'bg-purple-50 text-purple-700'
-																: 'bg-gray-50 text-gray-700'
-														}
-													>
-														{record.method}
-													</Badge>
-												</TableCell> */}
+												{/* <TableCell>{record.shift}</TableCell> */}
 												<TableCell>
 													<DropdownMenu>
 														<DropdownMenuTrigger asChild>
@@ -1135,48 +1124,18 @@ export default function AccessMonitoringPage() {
 									</div>
 
 									<div className='space-y-2'>
-										<div className='text-sm text-gray-500'>Phương thức</div>
-										{/* <div className='flex items-center'>
+										<div className='text-sm text-gray-500'>Ca làm việc</div>
+										<div className='flex items-center'>
 											<Timer className='h-4 w-4 mr-2 text-gray-500' />
-											<span>{selectedRecord.method}</span>
-										</div> */}
+											<span>{selectedRecord.shift}</span>
+										</div>
 									</div>
 								</div>
 							</div>
-
-							{/* Additional Info */}
-							{/* <div className='rounded-md border p-4 bg-gray-50'>
-								<h4 className='text-sm font-medium mb-2'>Thông tin bổ sung</h4>
-								<div className='grid grid-cols-2 gap-4 text-sm'>
-									<div>
-										<span className='text-gray-500'>Trạng thái:</span> Bình thường
-									</div>
-									<div>
-										<span className='text-gray-500'>Thiết bị:</span> Terminal A1
-									</div>
-									<div>
-										<span className='text-gray-500'>Ghi chú:</span> Không có
-									</div>
-								</div>
-							</div> */}
 						</div>
 					)}
 
 					<DialogFooter className='flex justify-between'>
-						{/* <Button
-							variant='outline'
-							className='gap-2'
-							onClick={() => {
-								// Logic to print report
-								toast({
-									title: 'Đang in báo cáo',
-									description: 'Báo cáo đang được gửi đến máy in...',
-								});
-							}}
-						>
-							<Download className='h-4 w-4' />
-							Xuất báo cáo
-						</Button> */}
 						<DialogClose asChild>
 							<Button>Đóng</Button>
 						</DialogClose>

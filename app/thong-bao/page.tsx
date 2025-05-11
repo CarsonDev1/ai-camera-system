@@ -35,6 +35,7 @@ import {
 	Clock,
 	Flame,
 	FilterIcon,
+	TriangleAlert,
 } from 'lucide-react';
 import NotificationOverviewCards from '@/components/notification-overview';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
@@ -46,6 +47,7 @@ import { Calendar as CalendarComponent } from '@/components/ui/calendar';
 import AlarmReportService, { AlertTypeDistributionItem } from '@/services/alarm-report-service';
 import { toast } from '@/components/ui/use-toast';
 import { Skeleton } from '@/components/ui/skeleton';
+import NotificationService from '@/services/notification-service';
 
 export default function NotificationsPage() {
 	// State for search and filters
@@ -101,6 +103,15 @@ export default function NotificationsPage() {
 		queryFn: AlarmReportService.getAlertTypeDistribution,
 	});
 
+	const {
+		data: notifiOverview,
+		isLoading: isNotifioverLoading,
+		refetch: refetchNotifi,
+	} = useQuery({
+		queryKey: ['notifiOverview'],
+		queryFn: NotificationService.getNotificationsOverview,
+	});
+
 	// Combined loading state
 	const isLoading = isInitialLoading || isRefreshing || isRefetching;
 
@@ -108,7 +119,7 @@ export default function NotificationsPage() {
 	const handleRefresh = async () => {
 		try {
 			setIsRefreshing(true);
-			await Promise.all([refetch(), refetchAlertTypes()]);
+			await Promise.all([refetch(), refetchAlertTypes(), refetchNotifi()]);
 			// Add a slight delay to make the loading state visible
 			await new Promise((resolve) => setTimeout(resolve, 500));
 			return true;
@@ -127,6 +138,7 @@ export default function NotificationsPage() {
 		onSuccess: () => {
 			// Refresh data after successful update
 			queryClient.invalidateQueries({ queryKey: ['alarmReports'] });
+			queryClient.invalidateQueries({ queryKey: ['notifiOverview'] });
 			toast({
 				title: 'Cập nhật trạng thái thành công',
 				description: 'Trạng thái thông báo đã được cập nhật',
@@ -151,6 +163,7 @@ export default function NotificationsPage() {
 		},
 		onSuccess: () => {
 			queryClient.invalidateQueries({ queryKey: ['alarmReports'] });
+			queryClient.invalidateQueries({ queryKey: ['notifiOverview'] });
 			toast({
 				title: 'Cập nhật hàng loạt thành công',
 				description: 'Tất cả thông báo đã được đánh dấu là đã xử lý',
@@ -173,7 +186,7 @@ export default function NotificationsPage() {
 
 	// Function to handle marking all as processed
 	const handleMarkAllProcessed = () => {
-		const pendingCount = alarmReports?.filter((alarm) => alarm.trang_thai === 'Chưa xử lý').length || 0;
+		const pendingCount = notifiOverview?.pending?.count || 0;
 		if (pendingCount === 0) {
 			toast({
 				title: 'Không có thông báo chưa xử lý',
@@ -451,13 +464,6 @@ export default function NotificationsPage() {
 
 	const sourceStats = calculateSourceStats();
 
-	// Count notifications by status
-	const countByStatus = {
-		pending: notifications.filter((n) => n.status === 'pending').length,
-		processing: notifications.filter((n) => n.status === 'processing').length,
-		processed: notifications.filter((n) => n.status === 'processed').length,
-	};
-
 	// Render skeleton loading state for status cards
 	const renderStatusCardSkeletons = () => (
 		<>
@@ -541,6 +547,11 @@ export default function NotificationsPage() {
 		}
 	};
 
+	// Calculate processing count (total - pending - done)
+	const processingCount = notifiOverview
+		? notifiOverview.total.count - notifiOverview.pending.count - notifiOverview.done.count
+		: 0;
+
 	return (
 		<div className='flex flex-col h-full'>
 			<DashboardHeader
@@ -555,7 +566,11 @@ export default function NotificationsPage() {
 						<Button
 							variant='outline'
 							onClick={handleMarkAllProcessed}
-							disabled={markAllProcessedMutation.isPending || countByStatus.pending === 0 || isLoading}
+							disabled={
+								markAllProcessedMutation.isPending ||
+								(notifiOverview?.pending?.count || 0) === 0 ||
+								isLoading
+							}
 						>
 							{markAllProcessedMutation.isPending ? (
 								<>
@@ -575,16 +590,26 @@ export default function NotificationsPage() {
 				</div>
 
 				<div className='grid grid-cols-1 md:grid-cols-3 gap-4'>
-					{isLoading ? (
+					{isLoading || isNotifioverLoading ? (
 						renderStatusCardSkeletons()
 					) : (
 						<>
 							<Card className='bg-blue-50'>
 								<CardContent className='pt-6'>
 									<div className='flex items-center justify-between'>
-										<div className='flex flex-col'>
-											<span className='text-sm font-medium text-blue-600'>Chưa xử lý</span>
-											<span className='text-2xl font-bold'>{countByStatus.pending}</span>
+										<div className='flex flex-col gap-2'>
+											<span className='text-sm font-medium text-blue-600'>
+												Tổng số thông báo trong tháng
+											</span>
+											<div className='flex items-baseline gap-2'>
+												<span className='text-2xl font-bold'>
+													{notifiOverview?.total.count}
+												</span>
+												<span className='text-xs font-bold text-green-400'>
+													{notifiOverview?.total.delta}
+												</span>
+											</div>
+											<span className='text-xs'>Hôm nay: {notifiOverview?.today.total}</span>
 										</div>
 										<div className='h-12 w-12 bg-blue-100 rounded-full flex items-center justify-center'>
 											<Bell className='h-6 w-6 text-blue-600' />
@@ -593,15 +618,23 @@ export default function NotificationsPage() {
 								</CardContent>
 							</Card>
 
-							<Card className='bg-yellow-50'>
+							<Card className='bg-red-50'>
 								<CardContent className='pt-6'>
 									<div className='flex items-center justify-between'>
-										<div className='flex flex-col'>
-											<span className='text-sm font-medium text-yellow-600'>Đang xử lý</span>
-											<span className='text-2xl font-bold'>{countByStatus.processing}</span>
+										<div className='flex flex-col gap-2'>
+											<span className='text-sm font-medium text-red-600'>Chưa xử lý</span>
+											<div className='flex items-baseline gap-2'>
+												<span className='text-2xl font-bold'>
+													{notifiOverview?.pending?.count || 0}
+												</span>
+												<span className='text-xs font-bold text-green-400'>
+													{notifiOverview?.pending.delta}
+												</span>
+											</div>
+											<span className='text-xs'>Hôm nay: {notifiOverview?.today.pending}</span>
 										</div>
-										<div className='h-12 w-12 bg-yellow-100 rounded-full flex items-center justify-center'>
-											<Clock className='h-6 w-6 text-yellow-600' />
+										<div className='h-12 w-12 bg-red-100 rounded-full flex items-center justify-center'>
+											<TriangleAlert className='h-6 w-6 text-red-600' />
 										</div>
 									</div>
 								</CardContent>
@@ -610,9 +643,17 @@ export default function NotificationsPage() {
 							<Card className='bg-green-50'>
 								<CardContent className='pt-6'>
 									<div className='flex items-center justify-between'>
-										<div className='flex flex-col'>
+										<div className='flex flex-col gap-2'>
 											<span className='text-sm font-medium text-green-600'>Đã xử lý</span>
-											<span className='text-2xl font-bold'>{countByStatus.processed}</span>
+											<div className='flex items-baseline gap-2'>
+												<span className='text-2xl font-bold'>
+													{notifiOverview?.done?.count || 0}
+												</span>
+												<span className='text-xs font-bold text-green-400'>
+													{notifiOverview?.done.delta}
+												</span>
+											</div>
+											<span className='text-xs'>Hôm nay: {notifiOverview?.today.done}</span>
 										</div>
 										<div className='h-12 w-12 bg-green-100 rounded-full flex items-center justify-center'>
 											<CheckCircle2 className='h-6 w-6 text-green-600' />
@@ -897,20 +938,17 @@ export default function NotificationsPage() {
 													<TableCell>
 														<Skeleton className='h-6 w-24' />
 													</TableCell>
-													<TableCell>
-														<Skeleton className='h-8 w-8' />
-													</TableCell>
 												</TableRow>
 											))
 									) : error ? (
 										<TableRow>
-											<TableCell colSpan={7} className='text-center py-4 text-red-500'>
+											<TableCell colSpan={6} className='text-center py-4 text-red-500'>
 												Lỗi: Không thể tải dữ liệu
 											</TableCell>
 										</TableRow>
 									) : filteredNotifications.length === 0 ? (
 										<TableRow>
-											<TableCell colSpan={7} className='text-center py-4'>
+											<TableCell colSpan={6} className='text-center py-4'>
 												Không có thông báo nào
 											</TableCell>
 										</TableRow>
