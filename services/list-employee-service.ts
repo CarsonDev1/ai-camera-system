@@ -25,6 +25,9 @@ export interface EmployeeData {
   custom_face_images1?: string | null;
   custom_face_images2?: string | null;
   custom_face_images3?: string | null;
+  custom_face_images4?: string | null;
+  custom_face_images5?: string | null;
+  custom_face_images6?: string | null;
   user_id?: string | null;
   create_user_permission?: number;
   company?: string;
@@ -104,6 +107,9 @@ export interface Employee {
   custom_face_images1: string | null;
   custom_face_images2: string | null;
   custom_face_images3: string | null;
+  custom_face_images4?: string | null;
+  custom_face_images5?: string | null;
+  custom_face_images6?: string | null;
   department: string;
   designation: string | null;
   employment_type: string;

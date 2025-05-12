@@ -33,6 +33,7 @@ import {
 	ChevronsLeft,
 	ChevronsRight,
 	X,
+	Upload,
 } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
 import EmployeeService, { EmployeeData, Employee } from '@/services/list-employee-service';
@@ -411,36 +412,101 @@ function EmployeeDetailsDialog({
 								{getDepartmentDisplay(employee?.department)}
 							</p>
 						</div>
-						<div className='flex item gap-1'>
+						<div className='flex items-center w-full justify-between h-full gap-2'>
 							{employee?.custom_face_images1 ? (
-								<Image src={employee?.custom_face_images1} width={50} height={50} alt='face1' />
+								<div className='w-16 h-16 overflow-hidden rounded-md'>
+									<Image
+										src={`https://dev4.tadalabs.vn/${employee.custom_face_images1}`}
+										width={64}
+										height={64}
+										alt='face1'
+										className='object-cover w-full h-full'
+									/>
+								</div>
 							) : (
-								<span className='p-3 bg-slate-200 rounded-md'>Ảnh 1</span>
+								<div className='w-16 h-16 flex items-center justify-center bg-slate-200 rounded-md'>
+									<span>Ảnh 1</span>
+								</div>
 							)}
+
 							{employee?.custom_face_images2 ? (
-								<Image src={employee?.custom_face_images2} width={50} height={50} alt='face2' />
+								<div className='w-16 h-16 overflow-hidden rounded-md'>
+									<Image
+										src={`https://dev4.tadalabs.vn/${employee.custom_face_images2}`}
+										width={64}
+										height={64}
+										alt='face2'
+										className='object-cover w-full h-full'
+									/>
+								</div>
 							) : (
-								<span className='p-3 bg-slate-200 rounded-md'>Ảnh 2</span>
+								<div className='w-16 h-16 flex items-center justify-center bg-slate-200 rounded-md'>
+									<span>Ảnh 2</span>
+								</div>
 							)}
+
 							{employee?.custom_face_images3 ? (
-								<Image src={employee?.custom_face_images3} width={50} height={50} alt='face3' />
+								<div className='w-16 h-16 overflow-hidden rounded-md'>
+									<Image
+										src={`https://dev4.tadalabs.vn/${employee.custom_face_images3}`}
+										width={64}
+										height={64}
+										alt='face3'
+										className='object-cover w-full h-full'
+									/>
+								</div>
 							) : (
-								<span className='p-3 bg-slate-200 rounded-md'>Ảnh 3</span>
+								<div className='w-16 h-16 flex items-center justify-center bg-slate-200 rounded-md'>
+									<span>Ảnh 3</span>
+								</div>
 							)}
+
 							{employee?.custom_face_images4 ? (
-								<Image src={employee?.custom_face_images1} width={50} height={50} alt='face4' />
+								<div className='w-16 h-16 overflow-hidden rounded-md'>
+									<Image
+										src={`https://dev4.tadalabs.vn/${employee.custom_face_images4}`}
+										width={64}
+										height={64}
+										alt='face4'
+										className='object-cover w-full h-full'
+									/>
+								</div>
 							) : (
-								<span className='p-3 bg-slate-200 rounded-md'>Ảnh 4</span>
+								<div className='w-16 h-16 flex items-center justify-center bg-slate-200 rounded-md'>
+									<span>Ảnh 4</span>
+								</div>
 							)}
+
 							{employee?.custom_face_images5 ? (
-								<Image src={employee?.custom_face_images1} width={50} height={50} alt='face5' />
+								<div className='w-16 h-16 overflow-hidden rounded-md'>
+									<Image
+										src={`https://dev4.tadalabs.vn/${employee.custom_face_images5}`}
+										width={64}
+										height={64}
+										alt='face5'
+										className='object-cover w-full h-full'
+									/>
+								</div>
 							) : (
-								<span className='p-3 bg-slate-200 rounded-md'>Ảnh 5</span>
+								<div className='w-16 h-16 flex items-center justify-center bg-slate-200 rounded-md'>
+									<span>Ảnh 5</span>
+								</div>
 							)}
+
 							{employee?.custom_face_images6 ? (
-								<Image src={employee?.custom_face_images6} width={50} height={50} alt='face6' />
+								<div className='w-16 h-16 overflow-hidden rounded-md'>
+									<Image
+										src={`https://dev4.tadalabs.vn/${employee.custom_face_images6}`}
+										width={64}
+										height={64}
+										alt='face6'
+										className='object-cover w-full h-full'
+									/>
+								</div>
 							) : (
-								<span className='p-3 bg-slate-200 rounded-md'>Ảnh 6</span>
+								<div className='w-16 h-16 flex items-center justify-center bg-slate-200 rounded-md'>
+									<span>Ảnh 6</span>
+								</div>
 							)}
 						</div>
 					</div>
@@ -1069,7 +1135,7 @@ export default function ObjectManagementPage() {
 				open={editDialogOpen}
 				onOpenChange={setEditDialogOpen}
 				employee={employeeDetail || selectedEmployee}
-				onSubmit={(data) => {
+				onSubmit={(data: EmployeeData) => {
 					updateMutation.mutate({
 						name: selectedEmployeeName!,
 						employeeData: data,
@@ -1133,10 +1199,18 @@ function EditEmployeeDialog({
 		queryFn: () => GenderService.getAllGenders(),
 	});
 
-	// State for handling the avatar
+	// State for handling the main avatar and face images
 	const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
-	const [avatarFile, setAvatarFile] = useState<File | null>(null);
+	const [faceImages, setFaceImages] = useState<{ [key: string]: string | null }>({
+		custom_face_images1: null,
+		custom_face_images2: null,
+		custom_face_images3: null,
+		custom_face_images4: null,
+		custom_face_images5: null,
+		custom_face_images6: null,
+	});
 	const [isUploading, setIsUploading] = useState(false);
+	const [uploadingField, setUploadingField] = useState<string | null>(null);
 	const { toast } = useToast();
 
 	const form = useForm<EmployeeData>({
@@ -1151,6 +1225,12 @@ function EditEmployeeDialog({
 			personal_email: employee?.personal_email || '',
 			current_address: employee?.current_address || '',
 			custom_face_images: employee?.custom_face_images || '',
+			custom_face_images1: employee?.custom_face_images1 || '',
+			custom_face_images2: employee?.custom_face_images2 || '',
+			custom_face_images3: employee?.custom_face_images3 || '',
+			custom_face_images4: employee?.custom_face_images4 || '',
+			custom_face_images5: employee?.custom_face_images5 || '',
+			custom_face_images6: employee?.custom_face_images6 || '',
 		},
 	});
 
@@ -1168,6 +1248,12 @@ function EditEmployeeDialog({
 				personal_email: employee.personal_email || '',
 				current_address: employee.current_address || '',
 				custom_face_images: employee.custom_face_images || '',
+				custom_face_images1: employee.custom_face_images1 || '',
+				custom_face_images2: employee.custom_face_images2 || '',
+				custom_face_images3: employee.custom_face_images3 || '',
+				custom_face_images4: employee.custom_face_images4 || '',
+				custom_face_images5: employee.custom_face_images5 || '',
+				custom_face_images6: employee.custom_face_images6 || '',
 			});
 
 			// Set avatar preview if exists
@@ -1176,25 +1262,33 @@ function EditEmployeeDialog({
 			} else {
 				setAvatarPreview(null);
 			}
+
+			// Set face images previews
+			const images = {
+				custom_face_images1: employee.custom_face_images1
+					? `https://dev4.tadalabs.vn/${employee.custom_face_images1}`
+					: null,
+				custom_face_images2: employee.custom_face_images2
+					? `https://dev4.tadalabs.vn/${employee.custom_face_images2}`
+					: null,
+				custom_face_images3: employee.custom_face_images3
+					? `https://dev4.tadalabs.vn/${employee.custom_face_images3}`
+					: null,
+				custom_face_images4: employee.custom_face_images4
+					? `https://dev4.tadalabs.vn/${employee.custom_face_images4}`
+					: null,
+				custom_face_images5: employee.custom_face_images5
+					? `https://dev4.tadalabs.vn/${employee.custom_face_images5}`
+					: null,
+				custom_face_images6: employee.custom_face_images6
+					? `https://dev4.tadalabs.vn/${employee.custom_face_images6}`
+					: null,
+			};
+			setFaceImages(images);
 		}
 	}, [employee, form, isLoading]);
 
-	if (isLoading) {
-		return (
-			<Dialog open={open} onOpenChange={onOpenChange}>
-				<DialogContent>
-					<DialogHeader>
-						<DialogTitle>Đang tải thông tin...</DialogTitle>
-					</DialogHeader>
-					<div className='flex justify-center p-4'>
-						<div className='h-8 w-8 animate-spin rounded-full border-2 border-primary border-t-transparent'></div>
-					</div>
-				</DialogContent>
-			</Dialog>
-		);
-	}
-
-	// Handle file change for avatar with direct upload
+	// Handle file change for main avatar
 	const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
 		const file = e.target.files?.[0];
 		if (!file) return;
@@ -1202,8 +1296,8 @@ function EditEmployeeDialog({
 		// Create a temporary preview
 		const previewUrl = URL.createObjectURL(file);
 		setAvatarPreview(previewUrl);
-		setAvatarFile(file);
 		setIsUploading(true);
+		setUploadingField('custom_face_images');
 
 		try {
 			// Upload the file immediately
@@ -1251,18 +1345,98 @@ function EditEmployeeDialog({
 			}
 		} finally {
 			setIsUploading(false);
+			setUploadingField(null);
+		}
+	};
+
+	// Handle file change for face images
+	const handleFaceImageChange = async (e: React.ChangeEvent<HTMLInputElement>, fieldName: string) => {
+		const file = e.target.files?.[0];
+		if (!file) return;
+
+		// Create a temporary preview
+		const previewUrl = URL.createObjectURL(file);
+		setFaceImages((prev) => ({
+			...prev,
+			[fieldName]: previewUrl,
+		}));
+		setIsUploading(true);
+		setUploadingField(fieldName);
+
+		try {
+			// Upload the file immediately
+			const response: any = await FileUploadService.uploadFile(
+				file,
+				'Employee', // doctype
+				employee.name || '', // docname
+				false // isPrivate
+			);
+
+			if (response.message) {
+				// If upload successful, set the file URL in the form
+				const fileUrl = response.message?.file_url;
+				form.setValue(fieldName as any, fileUrl);
+				toast({
+					title: 'Tải ảnh thành công',
+					description: 'Ảnh khuôn mặt đã được cập nhật',
+				});
+			} else {
+				// If upload failed, show error and reset
+				toast({
+					title: 'Lỗi tải ảnh',
+					description: 'Không thể tải ảnh lên. Vui lòng thử lại.',
+					variant: 'destructive',
+				});
+				// Reset to previous image if there was one
+				const prevImage = employee[fieldName];
+				setFaceImages((prev) => ({
+					...prev,
+					[fieldName]: prevImage ? `https://dev4.tadalabs.vn/${prevImage}` : null,
+				}));
+			}
+		} catch (error) {
+			toast({
+				title: 'Lỗi tải ảnh',
+				description: 'Có lỗi xảy ra khi tải ảnh lên. Vui lòng thử lại sau.',
+				variant: 'destructive',
+			});
+			console.error('Error uploading face image:', error);
+			// Reset to previous image if there was one
+			const prevImage = employee[fieldName];
+			setFaceImages((prev) => ({
+				...prev,
+				[fieldName]: prevImage ? `https://dev4.tadalabs.vn/${prevImage}` : null,
+			}));
+		} finally {
+			setIsUploading(false);
+			setUploadingField(null);
 		}
 	};
 
 	const handleSubmit = (data: EmployeeData) => {
-		// No need to do anything special with the avatar here anymore
-		// since we've already uploaded it and set the URL in the form
+		// Since we've already uploaded the images and set the URLs in the form,
+		// we can just submit the form data directly
 		onSubmit(data);
 	};
 
+	if (isLoading) {
+		return (
+			<Dialog open={open} onOpenChange={onOpenChange}>
+				<DialogContent>
+					<DialogHeader>
+						<DialogTitle>Đang tải thông tin...</DialogTitle>
+					</DialogHeader>
+					<div className='flex justify-center p-4'>
+						<div className='h-8 w-8 animate-spin rounded-full border-2 border-primary border-t-transparent'></div>
+					</div>
+				</DialogContent>
+			</Dialog>
+		);
+	}
+
 	return (
 		<Dialog open={open} onOpenChange={onOpenChange}>
-			<DialogContent className='sm:max-w-[600px]'>
+			<DialogContent className='sm:max-w-[600px] max-h-screen overflow-y-auto'>
 				<DialogHeader>
 					<DialogTitle>Chỉnh sửa thông tin đối tượng</DialogTitle>
 					<DialogDescription>Cập nhật thông tin của đối tượng. Nhấn Lưu khi hoàn tất.</DialogDescription>
@@ -1272,7 +1446,7 @@ function EditEmployeeDialog({
 						{/* Avatar upload section */}
 						<div className='flex flex-col items-center space-y-4 mb-4'>
 							<div className='h-24 w-24 rounded-full bg-primary/10 flex items-center justify-center text-primary overflow-hidden relative'>
-								{isUploading ? (
+								{isUploading && uploadingField === 'custom_face_images' ? (
 									<div className='absolute inset-0 flex items-center justify-center bg-black bg-opacity-30'>
 										<div className='h-8 w-8 animate-spin rounded-full border-2 border-white border-t-transparent'></div>
 									</div>
@@ -1304,8 +1478,67 @@ function EditEmployeeDialog({
 									isUploading ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer hover:underline'
 								}`}
 							>
-								{isUploading ? 'Đang tải ảnh...' : 'Thay đổi ảnh đại diện'}
+								{isUploading && uploadingField === 'custom_face_images'
+									? 'Đang tải ảnh...'
+									: 'Thay đổi ảnh đại diện'}
 							</label>
+						</div>
+
+						{/* Face Images Upload Section */}
+						<div className='space-y-4'>
+							<h3 className='text-sm font-medium'>Ảnh khuôn mặt</h3>
+							<div className='grid grid-cols-3 gap-2'>
+								{[
+									'custom_face_images1',
+									'custom_face_images2',
+									'custom_face_images3',
+									'custom_face_images4',
+									'custom_face_images5',
+									'custom_face_images6',
+								].map((field, index) => (
+									<div key={field} className='relative'>
+										<div className='h-20 w-20 rounded bg-gray-100 flex items-center justify-center overflow-hidden relative border border-gray-200'>
+											{isUploading && uploadingField === field ? (
+												<div className='absolute inset-0 flex items-center justify-center bg-black bg-opacity-30'>
+													<div className='h-6 w-6 animate-spin rounded-full border-2 border-white border-t-transparent'></div>
+												</div>
+											) : null}
+											{faceImages[field] ? (
+												<Image
+													src={faceImages[field]!}
+													width={80}
+													height={80}
+													alt={`Face ${index + 1}`}
+													className='object-cover w-full h-full'
+												/>
+											) : (
+												<User className='h-8 w-8 text-gray-400' />
+											)}
+											<input
+												type='file'
+												accept='image/*'
+												id={`face-upload-${index + 1}`}
+												onChange={(e) => handleFaceImageChange(e, field)}
+												className='absolute inset-0 opacity-0 cursor-pointer'
+												aria-label={`Upload face image ${index + 1}`}
+												disabled={isUploading}
+											/>
+										</div>
+										<label
+											htmlFor={`face-upload-${index + 1}`}
+											className='flex justify-center mt-1 text-xs text-primary cursor-pointer hover:underline'
+										>
+											{isUploading && uploadingField === field ? (
+												<span className='text-gray-500'>Đang tải...</span>
+											) : (
+												<span className='flex items-center'>
+													<Upload className='h-3 w-3 mr-1' /> Ảnh {index + 1}
+												</span>
+											)}
+										</label>
+									</div>
+								))}
+							</div>
 						</div>
 
 						<div className='grid grid-cols-2 gap-4'>
@@ -1553,6 +1786,14 @@ function EditEmployeeDialog({
 								</FormItem>
 							)}
 						/>
+
+						{/* Hidden fields for face images to ensure they're included in the form submission */}
+						<input type='hidden' {...form.register('custom_face_images1')} />
+						<input type='hidden' {...form.register('custom_face_images2')} />
+						<input type='hidden' {...form.register('custom_face_images3')} />
+						<input type='hidden' {...form.register('custom_face_images4')} />
+						<input type='hidden' {...form.register('custom_face_images5')} />
+						<input type='hidden' {...form.register('custom_face_images6')} />
 
 						<DialogFooter>
 							<Button type='button' variant='outline' onClick={() => onOpenChange(false)}>
