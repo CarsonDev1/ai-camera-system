@@ -39,7 +39,7 @@ import {
 } from 'lucide-react';
 import NotificationOverviewCards from '@/components/notification-overview';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { format, isAfter, isBefore, parseISO, startOfDay, endOfDay, isValid } from 'date-fns';
 import { vi } from 'date-fns/locale';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
@@ -57,6 +57,9 @@ export default function NotificationsPage() {
 	const [isDateFilterActive, setIsDateFilterActive] = useState(false);
 	const [isCalendarOpen, setIsCalendarOpen] = useState(false);
 	const [isRefreshing, setIsRefreshing] = useState(false);
+	const [currentPage, setCurrentPage] = useState(1);
+	const [pageSize, setPageSize] = useState(10);
+	const [totalItems, setTotalItems] = useState(0);
 
 	// Advanced filter states
 	const [isFilterOpen, setIsFilterOpen] = useState(false);
@@ -83,15 +86,21 @@ export default function NotificationsPage() {
 
 	// Fetch alarm reports using React Query
 	const {
-		data: alarmReports,
+		data: paginatedAlarmReports,
 		isLoading: isInitialLoading,
 		error,
 		refetch,
 		isRefetching,
 	} = useQuery({
-		queryKey: ['alarmReports'],
-		queryFn: AlarmReportService.getAllAlarmReports,
+		queryKey: ['alarmReports', currentPage, pageSize],
+		queryFn: () => AlarmReportService.getPaginatedAlarmReports(currentPage, pageSize),
 	});
+
+	useEffect(() => {
+		if (paginatedAlarmReports?.totalCount) {
+			setTotalItems(paginatedAlarmReports.totalCount);
+		}
+	}, [paginatedAlarmReports]);
 
 	// Fetch alert type distribution data
 	const {
@@ -131,14 +140,31 @@ export default function NotificationsPage() {
 		}
 	};
 
+	const handlePageChange = (newPage: any) => {
+		if (newPage >= 1 && newPage <= Math.ceil(totalItems / pageSize)) {
+			setCurrentPage(newPage);
+		}
+	};
+
+	const handlePageSizeChange = (newSize: any) => {
+		setPageSize(newSize);
+		// Reset to first page when changing page size
+		setCurrentPage(1);
+	};
+
 	// Mutation for updating alarm status
 	const updateStatusMutation = useMutation({
 		mutationFn: ({ alarmName, status }: { alarmName: string; status: 'Chưa xử lý' | 'Đang xử lý' | 'Đã xử lý' }) =>
 			AlarmReportService.updateAlarmStatus(alarmName, status),
 		onSuccess: () => {
-			// Refresh data after successful update
-			queryClient.invalidateQueries({ queryKey: ['alarmReports'] });
-			queryClient.invalidateQueries({ queryKey: ['notifiOverview'] });
+			// Update the queryKey to include pagination parameters
+			queryClient.invalidateQueries({
+				queryKey: ['alarmReports', currentPage, pageSize],
+			});
+			queryClient.invalidateQueries({
+				queryKey: ['notifiOverview'],
+			});
+
 			toast({
 				title: 'Cập nhật trạng thái thành công',
 				description: 'Trạng thái thông báo đã được cập nhật',
@@ -157,13 +183,23 @@ export default function NotificationsPage() {
 	// Mutation for batch updating all notifications to processed
 	const markAllProcessedMutation = useMutation({
 		mutationFn: async () => {
-			const pendingAlarms = alarmReports?.filter((alarm) => alarm.trang_thai === 'Chưa xử lý') || [];
+			// Use paginatedAlarmReports.data instead of alarmReports
+			const pendingAlarms =
+				paginatedAlarmReports?.data?.filter((alarm) => alarm.trang_thai === 'Chưa xử lý') || [];
+
 			const promises = pendingAlarms.map((alarm) => AlarmReportService.updateAlarmStatus(alarm.name, 'Đã xử lý'));
+
 			await Promise.all(promises);
 		},
 		onSuccess: () => {
-			queryClient.invalidateQueries({ queryKey: ['alarmReports'] });
-			queryClient.invalidateQueries({ queryKey: ['notifiOverview'] });
+			// Update the queryKey to include pagination parameters for proper cache invalidation
+			queryClient.invalidateQueries({
+				queryKey: ['alarmReports', currentPage, pageSize],
+			});
+			queryClient.invalidateQueries({
+				queryKey: ['notifiOverview'],
+			});
+
 			toast({
 				title: 'Cập nhật hàng loạt thành công',
 				description: 'Tất cả thông báo đã được đánh dấu là đã xử lý',
@@ -286,7 +322,7 @@ export default function NotificationsPage() {
 	};
 
 	// Transform alarmReports to notifications format
-	const notifications = alarmReports ? alarmReports.map(mapAlarmToNotification) : [];
+	const notifications = paginatedAlarmReports?.data ? paginatedAlarmReports.data.map(mapAlarmToNotification) : [];
 
 	// Handle date range selection
 	const handleDateRangeSelect = (range: any) => {
@@ -622,7 +658,9 @@ export default function NotificationsPage() {
 								<CardContent className='pt-6'>
 									<div className='flex items-center justify-between'>
 										<div className='flex flex-col gap-2'>
-											<span className='text-sm font-medium text-red-600'>Chưa xử lý</span>
+											<span className='text-sm font-medium text-red-600'>
+												Chưa xử lý trong tháng
+											</span>
 											<div className='flex items-baseline gap-2'>
 												<span className='text-2xl font-bold'>
 													{notifiOverview?.pending?.count || 0}
@@ -644,7 +682,9 @@ export default function NotificationsPage() {
 								<CardContent className='pt-6'>
 									<div className='flex items-center justify-between'>
 										<div className='flex flex-col gap-2'>
-											<span className='text-sm font-medium text-green-600'>Đã xử lý</span>
+											<span className='text-sm font-medium text-green-600'>
+												Đã xử lý trong tháng
+											</span>
 											<div className='flex items-baseline gap-2'>
 												<span className='text-2xl font-bold'>
 													{notifiOverview?.done?.count || 0}
@@ -709,10 +749,10 @@ export default function NotificationsPage() {
 								</PopoverContent>
 							</Popover>
 
-							<Button variant='outline' size='sm' disabled={isLoading}>
+							{/* <Button variant='outline' size='sm' disabled={isLoading}>
 								<Trash2 className='h-4 w-4 mr-2' />
 								Xóa đã xử lý
-							</Button>
+							</Button> */}
 						</div>
 					</CardHeader>
 					<CardContent>
@@ -780,17 +820,7 @@ export default function NotificationsPage() {
 															onCheckedChange={() => handleTitleFilterChange('intrusion')}
 														/>
 														<Label htmlFor='intrusion' className='text-sm font-normal'>
-															Cảnh báo hành vi cấm
-														</Label>
-													</div>
-													<div className='flex items-center space-x-2'>
-														<Checkbox
-															id='violation'
-															checked={titleFilters.violation}
-															onCheckedChange={() => handleTitleFilterChange('violation')}
-														/>
-														<Label htmlFor='violation' className='text-sm font-normal'>
-															Cảnh báo vi phạm
+															Cảnh báo Xâm Nhập Trái Phép
 														</Label>
 													</div>
 													<div className='flex items-center space-x-2'>
@@ -802,7 +832,7 @@ export default function NotificationsPage() {
 															}
 														/>
 														<Label htmlFor='labor-safety' className='text-sm font-normal'>
-															Cảnh báo nhật ký thông
+															Cảnh báo An Toàn Lao Động
 														</Label>
 													</div>
 													<div className='flex items-center space-x-2'>
@@ -814,7 +844,7 @@ export default function NotificationsPage() {
 															}
 														/>
 														<Label htmlFor='fire-warning' className='text-sm font-normal'>
-															Báo cảo hàng ngày
+															Báo cảo hằng ngày
 														</Label>
 													</div>
 												</div>
@@ -836,22 +866,12 @@ export default function NotificationsPage() {
 													</div>
 													<div className='flex items-center space-x-2'>
 														<Checkbox
-															id='behavior'
-															checked={sourceFilters.behavior}
-															onCheckedChange={() => handleSourceFilterChange('behavior')}
-														/>
-														<Label htmlFor='behavior' className='text-sm font-normal'>
-															Giám sát hành vi
-														</Label>
-													</div>
-													<div className='flex items-center space-x-2'>
-														<Checkbox
 															id='safety'
 															checked={sourceFilters.safety}
 															onCheckedChange={() => handleSourceFilterChange('safety')}
 														/>
 														<Label htmlFor='safety' className='text-sm font-normal'>
-															Giám sát an toàn
+															Giám sát bảo hộ
 														</Label>
 													</div>
 													<div className='flex items-center space-x-2'>
@@ -1018,7 +1038,7 @@ export default function NotificationsPage() {
 																<Bell className='h-4 w-4 mr-2 text-blue-600' />
 																Chưa xử lý
 															</DropdownMenuItem>
-															<DropdownMenuItem
+															{/* <DropdownMenuItem
 																onClick={() =>
 																	handleStatusUpdate(notification.id, 'Đang xử lý')
 																}
@@ -1026,7 +1046,7 @@ export default function NotificationsPage() {
 															>
 																<Clock className='h-4 w-4 mr-2 text-yellow-600' />
 																Đang xử lý
-															</DropdownMenuItem>
+															</DropdownMenuItem> */}
 															<DropdownMenuItem
 																onClick={() =>
 																	handleStatusUpdate(notification.id, 'Đã xử lý')
@@ -1044,6 +1064,53 @@ export default function NotificationsPage() {
 									)}
 								</TableBody>
 							</Table>
+						</div>
+						<div className='flex items-center justify-between py-4'>
+							<div className='flex items-center space-x-2'>
+								<span className='text-sm text-muted-foreground'>Số mục mỗi trang</span>
+								<Select
+									value={pageSize.toString()}
+									onValueChange={(value) => handlePageSizeChange(Number(value))}
+									disabled={isLoading}
+								>
+									<SelectTrigger className='h-8 w-[70px]'>
+										<SelectValue placeholder={pageSize} />
+									</SelectTrigger>
+									<SelectContent>
+										<SelectItem value='5'>5</SelectItem>
+										<SelectItem value='10'>10</SelectItem>
+										<SelectItem value='20'>20</SelectItem>
+										<SelectItem value='50'>50</SelectItem>
+									</SelectContent>
+								</Select>
+							</div>
+
+							{/* <div className='text-sm text-muted-foreground'>
+								Hiển thị {totalItems === 0 ? 0 : (currentPage - 1) * pageSize + 1} đến{' '}
+								{Math.min(currentPage * pageSize, totalItems)} trong tổng số {totalItems} thông báo
+							</div> */}
+
+							<div className='flex items-center space-x-2'>
+								<Button
+									variant='outline'
+									size='sm'
+									onClick={() => handlePageChange(currentPage - 1)}
+									disabled={currentPage === 1 || isLoading}
+								>
+									Trước
+								</Button>
+								<div className='text-sm'>
+									Trang {currentPage} / {Math.max(1, Math.ceil(totalItems / pageSize))}
+								</div>
+								<Button
+									variant='outline'
+									size='sm'
+									onClick={() => handlePageChange(currentPage + 1)}
+									disabled={currentPage >= Math.ceil(totalItems / pageSize) || isLoading}
+								>
+									Sau
+								</Button>
+							</div>
 						</div>
 					</CardContent>
 				</Card>

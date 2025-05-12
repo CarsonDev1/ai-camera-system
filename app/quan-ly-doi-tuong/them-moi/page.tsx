@@ -31,6 +31,7 @@ import {
 	AlertCircle,
 	CalendarIcon,
 	Check,
+	User,
 } from 'lucide-react';
 import { useQuery, useMutation } from '@tanstack/react-query';
 import DepartmentService from '@/services/department-service';
@@ -43,6 +44,8 @@ import { Calendar } from '@/components/ui/calendar';
 import { useToast } from '@/hooks/use-toast';
 import EmployeeServiceAction, { EmployeeData, useEmployeeService } from '@/services/create-employee-service';
 import { useRouter } from 'next/navigation';
+import Image from 'next/image';
+import FileUploadService from '@/services/upload-image-service';
 
 // Define the validation schema
 const formSchema = z.object({
@@ -62,12 +65,30 @@ const formSchema = z.object({
 	}),
 	address: z.string().min(5, { message: 'Địa chỉ phải có ít nhất 5 ký tự' }),
 	notes: z.string().optional(),
+	custom_face_images1: z.string().optional(),
+	custom_face_images2: z.string().optional(),
+	custom_face_images3: z.string().optional(),
+	custom_face_images4: z.string().optional(),
+	custom_face_images5: z.string().optional(),
+	custom_face_images6: z.string().optional(),
 });
 
 export default function AddObjectPage() {
 	const [activeTab, setActiveTab] = useState('basic');
 	const [showPermissionAlert, setShowPermissionAlert] = useState(false);
 	const [dateOfBirth, setDateOfBirth] = useState(null);
+	// State cho avatar và face images
+	const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
+	const [faceImages, setFaceImages] = useState<{ [key: string]: string | null }>({
+		custom_face_images1: null,
+		custom_face_images2: null,
+		custom_face_images3: null,
+		custom_face_images4: null,
+		custom_face_images5: null,
+		custom_face_images6: null,
+	});
+	const [isUploading, setIsUploading] = useState(false);
+	const [uploadingField, setUploadingField] = useState<string | null>(null);
 	const { toast } = useToast(); // Use the toast hook directly
 	const employeeService = useEmployeeService();
 	const router = useRouter();
@@ -86,6 +107,12 @@ export default function AddObjectPage() {
 			joiningDate: undefined,
 			address: '',
 			notes: '',
+			custom_face_images1: '',
+			custom_face_images2: '',
+			custom_face_images3: '',
+			custom_face_images4: '',
+			custom_face_images5: '',
+			custom_face_images6: '',
 		},
 		mode: 'onChange', // Validate on change for better user experience
 	});
@@ -131,6 +158,95 @@ export default function AddObjectPage() {
 		},
 	});
 
+	const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+		const file = e.target.files?.[0];
+		if (!file) return;
+
+		// Tạo preview tạm thời
+		const previewUrl = URL.createObjectURL(file);
+		setAvatarPreview(previewUrl);
+		setIsUploading(true);
+		setUploadingField('custom_face_images1');
+
+		try {
+			// Upload file ngay lập tức sử dụng service
+			const response = await FileUploadService.uploadFile(
+				file,
+				'', // docname - để trống vì đối tượng chưa được tạo
+				false // isPrivate
+			);
+
+			if (response.message && response.message.file_url) {
+				// Nếu upload thành công, đặt URL của file vào form
+				form.setValue('custom_face_images1', response.message.file_url);
+				toast({
+					title: 'Tải ảnh thành công',
+					description: 'Ảnh đại diện đã được cập nhật',
+				});
+			} else {
+				throw new Error('Không nhận được URL file từ phản hồi');
+			}
+		} catch (error) {
+			toast({
+				title: 'Lỗi tải ảnh',
+				description: 'Không thể tải ảnh lên. Vui lòng thử lại.',
+				variant: 'destructive',
+			});
+			setAvatarPreview(null);
+		} finally {
+			setIsUploading(false);
+			setUploadingField(null);
+		}
+	};
+
+	// Xử lý upload ảnh khuôn mặt
+	const handleFaceImageChange = async (e: React.ChangeEvent<HTMLInputElement>, fieldName: string) => {
+		const file = e.target.files?.[0];
+		if (!file) return;
+
+		// Tạo preview tạm thời
+		const previewUrl = URL.createObjectURL(file);
+		setFaceImages((prev) => ({
+			...prev,
+			[fieldName]: previewUrl,
+		}));
+		setIsUploading(true);
+		setUploadingField(fieldName);
+
+		try {
+			// Upload file ngay lập tức
+			const response = await FileUploadService.uploadFile(
+				file,
+				'', // docname - để trống vì đối tượng chưa được tạo
+				false // isPrivate
+			);
+
+			if (response.message && response.message.file_url) {
+				// Nếu upload thành công, đặt URL của file vào form
+				form.setValue(fieldName as any, response.message.file_url);
+				toast({
+					title: 'Tải ảnh thành công',
+					description: 'Ảnh khuôn mặt đã được cập nhật',
+				});
+			} else {
+				throw new Error('Không nhận được URL file từ phản hồi');
+			}
+		} catch (error) {
+			toast({
+				title: 'Lỗi tải ảnh',
+				description: 'Có lỗi xảy ra khi tải ảnh lên. Vui lòng thử lại sau.',
+				variant: 'destructive',
+			});
+			setFaceImages((prev) => ({
+				...prev,
+				[fieldName]: null,
+			}));
+		} finally {
+			setIsUploading(false);
+			setUploadingField(null);
+		}
+	};
+
 	const handleTabChange = (value: any) => {
 		if (value === 'auth' || value === 'access') {
 			setShowPermissionAlert(true);
@@ -148,6 +264,16 @@ export default function AddObjectPage() {
 	const onSubmit = (formData: any) => {
 		console.log('Form submitted:', formData);
 
+		// Map loại đối tượng từ tiếng Việt sang giá trị API
+		let employmentType = 'Full-time';
+		if (formData.objectType === 'Nhà thầu') {
+			employmentType = 'Contract';
+		} else if (formData.objectType === 'Khách') {
+			employmentType = 'Temporary';
+		} else if (formData.objectType === 'Nhân viên') {
+			employmentType = 'Full-time';
+		}
+
 		// Map form data to API structure
 		const employeeData: EmployeeData = {
 			first_name: formData.fullName,
@@ -155,17 +281,21 @@ export default function AddObjectPage() {
 			date_of_joining: formData.joiningDate ? format(new Date(formData.joiningDate), 'yyyy-MM-dd') : '',
 			date_of_birth: formData.dob ? format(new Date(formData.dob), 'yyyy-MM-dd') : '',
 			department: formData.department,
-			employment_type: formData.objectType,
+			employment_type: employmentType,
 			cell_number: formData.phone,
 			personal_email: formData.email,
 			current_address: formData.address,
+			// Thêm URL của các file đã upload - các URL này đã được lưu vào form thông qua handleFileChange
+			custom_face_images1: formData.custom_face_images1 || '',
+			custom_face_images2: formData.custom_face_images2 || '',
+			custom_face_images3: formData.custom_face_images3 || '',
+			custom_face_images4: formData.custom_face_images4 || '',
+			custom_face_images5: formData.custom_face_images5 || '',
+			custom_face_images6: formData.custom_face_images6 || '',
 		};
 
 		// Execute the mutation
 		createEmployeeMutation.mutate(employeeData);
-
-		// Show a log to debug
-		console.log('Employee data sent to API:', employeeData);
 	};
 
 	return (
@@ -508,6 +638,123 @@ export default function AddObjectPage() {
 											/>
 										</div>
 									</CardContent>
+									<Card>
+										<CardHeader>
+											<CardTitle>Khuôn mặt</CardTitle>
+											<CardDescription>Thêm ảnh khuôn mặt cho đối tượng</CardDescription>
+										</CardHeader>
+										<CardContent className='space-y-6'>
+											{/* Phần upload avatar chính */}
+											<div className='flex flex-col items-center space-y-4 mb-4'>
+												<div className='h-24 w-24 rounded-full bg-primary/10 flex items-center justify-center text-primary overflow-hidden relative'>
+													{isUploading && uploadingField === 'custom_face_images1' ? (
+														<div className='absolute inset-0 flex items-center justify-center bg-black bg-opacity-30'>
+															<div className='h-8 w-8 animate-spin rounded-full border-2 border-white border-t-transparent'></div>
+														</div>
+													) : null}
+													{avatarPreview ? (
+														<Image
+															src={avatarPreview}
+															width={96}
+															height={96}
+															alt='Avatar preview'
+															className='rounded-full object-cover'
+														/>
+													) : (
+														<User className='h-12 w-12' />
+													)}
+													<input
+														type='file'
+														accept='image/*'
+														id='avatar-upload'
+														onChange={handleFileChange}
+														className='absolute inset-0 opacity-0 cursor-pointer'
+														aria-label='Upload avatar'
+														disabled={isUploading}
+													/>
+												</div>
+												<label
+													htmlFor='avatar-upload'
+													className={`text-sm text-primary ${
+														isUploading
+															? 'opacity-50 cursor-not-allowed'
+															: 'cursor-pointer hover:underline'
+													}`}
+												>
+													{isUploading && uploadingField === 'custom_face_images1'
+														? 'Đang tải ảnh...'
+														: 'Thay đổi ảnh đại diện'}
+												</label>
+											</div>
+
+											{/* Face Images Upload Section */}
+											<div className='space-y-4'>
+												<h3 className='text-sm font-medium'>Ảnh khuôn mặt</h3>
+												<div className='grid grid-cols-3 gap-4'>
+													{[
+														'custom_face_images1',
+														'custom_face_images2',
+														'custom_face_images3',
+														'custom_face_images4',
+														'custom_face_images5',
+														'custom_face_images6',
+													].map((field, index) => (
+														<div key={field} className='relative'>
+															<div className='h-20 w-20 rounded bg-gray-100 flex items-center justify-center overflow-hidden relative border border-gray-200'>
+																{isUploading && uploadingField === field ? (
+																	<div className='absolute inset-0 flex items-center justify-center bg-black bg-opacity-30'>
+																		<div className='h-6 w-6 animate-spin rounded-full border-2 border-white border-t-transparent'></div>
+																	</div>
+																) : null}
+																{faceImages[field] ? (
+																	<Image
+																		src={faceImages[field]!}
+																		width={80}
+																		height={80}
+																		alt={`Face ${index + 1}`}
+																		className='object-cover w-full h-full'
+																	/>
+																) : (
+																	<User className='h-8 w-8 text-gray-400' />
+																)}
+																<input
+																	type='file'
+																	accept='image/*'
+																	id={`face-upload-${index + 1}`}
+																	onChange={(e) => handleFaceImageChange(e, field)}
+																	className='absolute inset-0 opacity-0 cursor-pointer'
+																	aria-label={`Upload face image ${index + 1}`}
+																	disabled={isUploading}
+																/>
+															</div>
+															<label
+																htmlFor={`face-upload-${index + 1}`}
+																className='flex justify-center mt-1 text-xs text-primary cursor-pointer hover:underline'
+															>
+																{isUploading && uploadingField === field ? (
+																	<span className='text-gray-500'>Đang tải...</span>
+																) : (
+																	<span className='flex items-center'>
+																		<Upload className='h-3 w-3 mr-1' /> Ảnh{' '}
+																		{index + 1}
+																	</span>
+																)}
+															</label>
+														</div>
+													))}
+												</div>
+											</div>
+
+											<Alert variant='destructive' className='bg-yellow-50 border-yellow-200'>
+												<AlertCircle className='h-4 w-4 text-yellow-800' />
+												<AlertTitle className='text-yellow-800 font-semibold'>Lưu ý</AlertTitle>
+												<AlertDescription className='text-yellow-800'>
+													Để đảm bảo độ chính xác cao nhất, vui lòng tải lên ít nhất 3 ảnh
+													khuôn mặt ở các góc độ khác nhau.
+												</AlertDescription>
+											</Alert>
+										</CardContent>
+									</Card>
 									<div className='p-6 flex justify-end gap-2'>
 										{/* <Button variant='outline' type='button'>
 											Hủy

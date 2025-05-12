@@ -32,25 +32,18 @@ import { cn } from '@/lib/utils';
 import { format } from 'date-fns';
 import { Calendar as CalendarComponent } from '@/components/ui/calendar';
 import { vi } from 'date-fns/locale';
+import AlarmDashboardService from '@/services/alarm-dashboard-service';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
 // Stats Cards Component - Shows safety alerts statistics
 export const SafetyAlertsStats = () => {
-	const { data: allAlerts, isLoading: isLoadingAll } = useQuery({
-		queryKey: ['safetyAlerts'],
-		queryFn: () => SafetyAlertsService.getSafetyAlerts(),
+	const { data: alarmCounts, isLoading: isLoadingAlarmCounts } = useQuery({
+		queryKey: ['alarmCounts'],
+		queryFn: () => AlarmDashboardService.getAlarmCounts(),
 	});
 
-	const { data: pendingAlerts, isLoading: isLoadingPending } = useQuery({
-		queryKey: ['pendingSafetyAlerts'],
-		queryFn: () => SafetyAlertsService.getPendingSafetyAlerts(),
-		enabled: !!allAlerts,
-	});
-
-	const { data: resolvedAlerts, isLoading: isLoadingResolved } = useQuery({
-		queryKey: ['resolvedSafetyAlerts'],
-		queryFn: () => SafetyAlertsService.getResolvedSafetyAlerts(),
-		enabled: !!allAlerts,
-	});
+	// Get safety data from the "An Toàn Lao Động" key
+	const safetyData: any = alarmCounts?.['An Toàn Lao Động'];
 
 	return (
 		<div className='grid grid-cols-1 md:grid-cols-4 gap-4'>
@@ -60,8 +53,17 @@ export const SafetyAlertsStats = () => {
 						<div>
 							<p className='text-sm font-medium text-muted-foreground mb-1'>Tổng số vi phạm</p>
 							<div className='flex items-baseline gap-2'>
-								<h2 className='text-3xl font-bold'>{isLoadingAll ? '...' : allAlerts?.length || 0}</h2>
-								<span className='text-xs font-medium text-red-500'>+12%</span>
+								<h2 className='text-3xl font-bold'>
+									{isLoadingAlarmCounts ? '...' : safetyData?.total.count || 0}
+								</h2>
+								<span
+									className={`text-xs font-medium ${
+										safetyData?.total.delta >= 0 ? 'text-red-500' : 'text-green-500'
+									}`}
+								>
+									{safetyData?.total.delta >= 0 ? '+' : ''}
+									{safetyData?.total.delta || 0}%
+								</span>
 							</div>
 							<p className='text-xs text-muted-foreground mt-1'>So với tháng trước</p>
 						</div>
@@ -78,9 +80,16 @@ export const SafetyAlertsStats = () => {
 							<p className='text-sm font-medium text-muted-foreground mb-1'>Chưa xử lý</p>
 							<div className='flex items-baseline gap-2'>
 								<h2 className='text-3xl font-bold'>
-									{isLoadingPending ? '...' : pendingAlerts?.length || 0}
+									{isLoadingAlarmCounts ? '...' : safetyData?.pending.count || 0}
 								</h2>
-								<span className='text-xs font-medium text-red-500'>+8%</span>
+								<span
+									className={`text-xs font-medium ${
+										safetyData?.pending.delta >= 0 ? 'text-red-500' : 'text-green-500'
+									}`}
+								>
+									{safetyData?.pending.delta >= 0 ? '+' : ''}
+									{safetyData?.pending.delta || 0}%
+								</span>
 							</div>
 							<p className='text-xs text-muted-foreground mt-1'>So với tháng trước</p>
 						</div>
@@ -96,8 +105,17 @@ export const SafetyAlertsStats = () => {
 						<div>
 							<p className='text-sm font-medium text-muted-foreground mb-1'>Đang xử lý</p>
 							<div className='flex items-baseline gap-2'>
-								<h2 className='text-3xl font-bold'>0</h2>
-								<span className='text-xs font-medium text-green-500'>-5%</span>
+								<h2 className='text-3xl font-bold'>
+									{isLoadingAlarmCounts ? '...' : safetyData?.in_progress.count || 0}
+								</h2>
+								<span
+									className={`text-xs font-medium ${
+										safetyData?.in_progress.delta >= 0 ? 'text-red-500' : 'text-green-500'
+									}`}
+								>
+									{safetyData?.in_progress.delta >= 0 ? '+' : ''}
+									{safetyData?.in_progress.delta || 0}%
+								</span>
 							</div>
 							<p className='text-xs text-muted-foreground mt-1'>So với tháng trước</p>
 						</div>
@@ -114,9 +132,16 @@ export const SafetyAlertsStats = () => {
 							<p className='text-sm font-medium text-muted-foreground mb-1'>Đã xử lý</p>
 							<div className='flex items-baseline gap-2'>
 								<h2 className='text-3xl font-bold'>
-									{isLoadingResolved ? '...' : resolvedAlerts?.length || 0}
+									{isLoadingAlarmCounts ? '...' : safetyData?.done.count || 0}
 								</h2>
-								<span className='text-xs font-medium text-green-500'>+15%</span>
+								<span
+									className={`text-xs font-medium ${
+										safetyData?.done.delta >= 0 ? 'text-red-500' : 'text-green-500'
+									}`}
+								>
+									{safetyData?.done.delta >= 0 ? '+' : ''}
+									{safetyData?.done.delta || 0}%
+								</span>
 							</div>
 							<p className='text-xs text-muted-foreground mt-1'>So với tháng trước</p>
 						</div>
@@ -145,6 +170,8 @@ export const SafetyAlertsTable = ({
 
 	// Add date filter state
 	const [selectedDate, setSelectedDate] = useState<Date | undefined>(undefined);
+
+	const handleStatusChange = (logIndex: number, newStatus: string) => {};
 
 	// Use the modified query with pagination
 	const {
@@ -449,17 +476,15 @@ export const SafetyAlertsTable = ({
 										<TableCell>{alert.department}</TableCell>
 										<TableCell>{alert.employee_name || 'Không xác định'}</TableCell>
 										<TableCell>
-											<Badge
-												variant={
-													alert.trang_thai === 'Chưa xử lý'
-														? 'destructive'
-														: alert.trang_thai === 'Đang xử lý'
-														? 'default'
-														: 'outline'
-												}
-											>
-												{alert.trang_thai}
-											</Badge>
+											<Select value={alert.trang_thai}>
+												<SelectTrigger className='w-[120px]'>
+													<SelectValue />
+												</SelectTrigger>
+												<SelectContent>
+													<SelectItem value='Chưa xử lý'>Chưa xử lý</SelectItem>
+													<SelectItem value='Đã xử lý'>Đã xử lý</SelectItem>
+												</SelectContent>
+											</Select>
 										</TableCell>
 										<TableCell>
 											<DropdownMenu>

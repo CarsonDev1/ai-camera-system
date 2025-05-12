@@ -58,7 +58,7 @@ const getViolationColor = (violationType: string): string => {
 const formatDataForChart = (response: ViolationTypeDistributionData, periodType: 'day' | 'week' | 'month') => {
 	const violationTypes = response.data.map((item) => item.violation_type);
 
-	if (periodType === 'month') {
+	if (periodType === 'month' && response.data[0]?.weeks) {
 		// For month view, use week data from API
 		const weeks = response.data[0]?.weeks || [];
 
@@ -73,42 +73,60 @@ const formatDataForChart = (response: ViolationTypeDistributionData, periodType:
 
 			return weekData;
 		});
-	} else if (periodType === 'week') {
-		// For week view, show days of the week
-		const days = ['Thứ 2', 'Thứ 3', 'Thứ 4', 'Thứ 5', 'Thứ 6', 'Thứ 7', 'Chủ nhật'];
+	} else if (periodType === 'week' && response.data[0]?.days) {
+		// For week view, use days from the API response
+		const uniqueDays = new Set<string>();
 
-		return days.map((day) => {
+		// Collect all unique days from all violations
+		response.data.forEach((violation) => {
+			if (violation.days) {
+				violation.days.forEach((day: any) => uniqueDays.add(day.day));
+			}
+		});
+
+		const sortedDays = ['Thứ 2', 'Thứ 3', 'Thứ 4', 'Thứ 5', 'Thứ 6', 'Thứ 7', 'Chủ nhật'].filter((day) =>
+			uniqueDays.has(day)
+		);
+
+		return sortedDays.map((day) => {
 			const dayData: any = { name: day };
 
-			// Simulate data for each day (in a real app, this would come from API)
-			violationTypes.forEach((type) => {
-				const baseValue = response.data.find((v) => v.violation_type === type)?.cnt || 0;
-				// Create variation for each day
-				dayData[type] = Math.round((baseValue * (0.5 + Math.random() * 0.5)) / 7);
+			// Add data for each violation type
+			response.data.forEach((violation) => {
+				if (violation.days) {
+					const dayItem = violation.days.find((d: any) => d.day === day);
+					dayData[violation.violation_type] = dayItem?.count || 0;
+				} else {
+					dayData[violation.violation_type] = 0;
+				}
 			});
 
 			return dayData;
 		});
-	} else {
-		// For day view, show hourly data
-		const hours = Array.from({ length: 24 }, (_, i) => `${i}:00`);
+	} else if (periodType === 'day' && response.data[0]?.intervals) {
+		// For day view, use hourly intervals from API
+		const hourIntervals = response.data[0]?.intervals || [];
 
-		return hours.map((hour) => {
-			const hourData: any = { name: hour };
+		return hourIntervals.map((hourData: any) => {
+			const formattedData: any = { name: hourData.interval };
 
-			// Simulate hourly data (in a real app, this would come from API)
-			violationTypes.forEach((type) => {
-				const baseValue = response.data.find((v) => v.violation_type === type)?.cnt || 0;
-				// Create variation for each hour with higher values during work hours
-				const hourNum = parseInt(hour);
-				const isWorkHour = hourNum >= 8 && hourNum <= 17;
-				const factor = isWorkHour ? 0.8 + Math.random() * 0.4 : 0.1 + Math.random() * 0.2;
-				hourData[type] = Math.round((baseValue * factor) / 24);
+			// Add data for each violation type
+			response.data.forEach((violation) => {
+				if (violation.intervals) {
+					const interval = violation.intervals.find((i: any) => i.interval === hourData.interval);
+					formattedData[violation.violation_type] = interval?.count || 0;
+				} else {
+					formattedData[violation.violation_type] = 0;
+				}
 			});
 
-			return hourData;
+			return formattedData;
 		});
 	}
+
+	// Fallback if the expected data structure is not found
+	console.warn('Unexpected data structure for period type:', periodType, response);
+	return [];
 };
 
 export function SafetyComplianceChart() {
@@ -119,6 +137,7 @@ export function SafetyComplianceChart() {
 		data: violationData,
 		isLoading,
 		isError,
+		refetch,
 	} = useQuery({
 		queryKey: ['violationDistribution', periodType],
 		queryFn: () => ViolationTypeService.getViolationTypeDistribution(periodType),
@@ -132,6 +151,8 @@ export function SafetyComplianceChart() {
 
 	const handlePeriodChange = (period: 'day' | 'week' | 'month') => {
 		setPeriodType(period);
+		// Force refetch when period changes to ensure we have the right data
+		setTimeout(() => refetch(), 0);
 	};
 
 	if (isLoading) {
@@ -146,6 +167,52 @@ export function SafetyComplianceChart() {
 		return (
 			<div className='h-[300px] w-full flex items-center justify-center'>
 				<div className='text-red-500'>Không thể tải dữ liệu. Vui lòng thử lại sau.</div>
+			</div>
+		);
+	}
+
+	// Show a message if no data is available for the selected period
+	if (chartData.length === 0) {
+		return (
+			<div className='h-[300px] w-full'>
+				<div className='flex justify-between items-center mb-4'>
+					<div>
+						<CardTitle>Thống kê vi phạm an toàn theo thời gian</CardTitle>
+						<CardDescription>Phân tích xu hướng vi phạm theo ngày/tuần/tháng</CardDescription>
+					</div>
+					<div className='flex items-center justify-end space-x-2'>
+						<Button
+							variant='outline'
+							size='sm'
+							onClick={() => handlePeriodChange('day')}
+							className={periodType === 'day' ? 'bg-blue-50' : ''}
+						>
+							<Calendar className='h-4 w-4 mr-2' />
+							Ngày
+						</Button>
+						<Button
+							variant='outline'
+							size='sm'
+							onClick={() => handlePeriodChange('week')}
+							className={periodType === 'week' ? 'bg-blue-50' : ''}
+						>
+							<CalendarDays className='h-4 w-4 mr-2' />
+							Tuần
+						</Button>
+						<Button
+							variant='outline'
+							size='sm'
+							onClick={() => handlePeriodChange('month')}
+							className={periodType === 'month' ? 'bg-blue-50' : ''}
+						>
+							<CalendarRange className='h-4 w-4 mr-2' />
+							Tháng
+						</Button>
+					</div>
+				</div>
+				<div className='h-[250px] flex items-center justify-center'>
+					<div className='text-gray-500'>Không có dữ liệu vi phạm cho khoảng thời gian đã chọn</div>
+				</div>
 			</div>
 		);
 	}

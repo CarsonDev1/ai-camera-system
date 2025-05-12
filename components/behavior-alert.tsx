@@ -15,36 +15,44 @@ import {
 	DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { Activity, AlertTriangle, Clock, UserCheck, MoreHorizontal, Send, Ban, PieChart } from 'lucide-react';
-import BehaviorAlertsService, { BehaviorAlert } from '@/services/behavior-alert-service';
+import AlarmDashboardService from '@/services/alarm-dashboard-service';
+
+// Define types for our component
+interface BehaviorAlert {
+	name?: string;
+	loai_vi_pham: string;
+	khu_vuc?: string;
+	timestamp: string;
+	department?: string;
+	employee_name?: string;
+	trang_thai: string;
+}
 
 // Stats Cards Component - Shows behavior alerts statistics
 export const BehaviorAlertsStats = ({ statusFilter = 'all' }: { statusFilter?: string }) => {
-	const { data: allAlerts, isLoading: isLoadingAll } = useQuery({
-		queryKey: ['behaviorAlerts'],
-		queryFn: () => BehaviorAlertsService.getBehaviorAlerts(),
+	const { data: alarmCounts, isLoading: isLoadingAlarmCounts } = useQuery({
+		queryKey: ['alarmCounts'],
+		queryFn: () => AlarmDashboardService.getAlarmCounts(),
 	});
 
-	const { data: pendingAlerts, isLoading: isLoadingPending } = useQuery({
-		queryKey: ['pendingBehaviorAlerts'],
-		queryFn: () => BehaviorAlertsService.getPendingBehaviorAlerts(),
-		enabled: !!allAlerts,
-	});
+	// Get behavior data from the "Hành Vi Vi Phạm" key
+	const behaviorData: any = alarmCounts?.['Hành Vi Vi Phạm'];
 
-	const { data: resolvedAlerts, isLoading: isLoadingResolved } = useQuery({
-		queryKey: ['resolvedBehaviorAlerts'],
-		queryFn: () => BehaviorAlertsService.getResolvedBehaviorAlerts(),
-		enabled: !!allAlerts,
-	});
+	// Total count based on status filter
+	const getFilteredCount = () => {
+		if (!behaviorData) return 0;
 
-	// Filter alerts based on the status tab
-	const filteredAlerts = (() => {
-		if (!allAlerts) return [];
-
-		if (statusFilter === 'pending') return pendingAlerts || [];
-		if (statusFilter === 'processed') return resolvedAlerts || [];
-		// For 'all' or any other value, return all alerts
-		return allAlerts;
-	})();
+		switch (statusFilter) {
+			case 'pending':
+				return behaviorData.pending.count;
+			case 'processing':
+				return behaviorData.in_progress.count;
+			case 'processed':
+				return behaviorData.done.count;
+			default:
+				return behaviorData.total.count;
+		}
+	};
 
 	return (
 		<div className='grid grid-cols-1 md:grid-cols-4 gap-4'>
@@ -55,13 +63,16 @@ export const BehaviorAlertsStats = ({ statusFilter = 'all' }: { statusFilter?: s
 							<p className='text-sm font-medium text-muted-foreground mb-1'>Tổng số vi phạm</p>
 							<div className='flex items-baseline gap-2'>
 								<h2 className='text-3xl font-bold'>
-									{isLoadingAll
-										? '...'
-										: statusFilter === 'all'
-										? allAlerts?.length || 0
-										: filteredAlerts.length}
+									{isLoadingAlarmCounts ? '...' : getFilteredCount()}
 								</h2>
-								<span className='text-xs font-medium text-red-500'>+12%</span>
+								<span
+									className={`text-xs font-medium ${
+										behaviorData?.total.delta >= 0 ? 'text-red-500' : 'text-green-500'
+									}`}
+								>
+									{behaviorData?.total.delta >= 0 ? '+' : ''}
+									{behaviorData?.total.delta || 0}%
+								</span>
 							</div>
 							<p className='text-xs text-muted-foreground mt-1'>So với hôm qua</p>
 						</div>
@@ -78,9 +89,16 @@ export const BehaviorAlertsStats = ({ statusFilter = 'all' }: { statusFilter?: s
 							<p className='text-sm font-medium text-muted-foreground mb-1'>Chưa xử lý</p>
 							<div className='flex items-baseline gap-2'>
 								<h2 className='text-3xl font-bold'>
-									{isLoadingPending ? '...' : pendingAlerts?.length || 0}
+									{isLoadingAlarmCounts ? '...' : behaviorData?.pending.count || 0}
 								</h2>
-								<span className='text-xs font-medium text-red-500'>+8%</span>
+								<span
+									className={`text-xs font-medium ${
+										behaviorData?.pending.delta >= 0 ? 'text-red-500' : 'text-green-500'
+									}`}
+								>
+									{behaviorData?.pending.delta >= 0 ? '+' : ''}
+									{behaviorData?.pending.delta || 0}%
+								</span>
 							</div>
 							<p className='text-xs text-muted-foreground mt-1'>Cần xử lý</p>
 						</div>
@@ -96,8 +114,17 @@ export const BehaviorAlertsStats = ({ statusFilter = 'all' }: { statusFilter?: s
 						<div>
 							<p className='text-sm font-medium text-muted-foreground mb-1'>Đang xử lý</p>
 							<div className='flex items-baseline gap-2'>
-								<h2 className='text-3xl font-bold'>0</h2>
-								<span className='text-xs font-medium text-green-500'>-5%</span>
+								<h2 className='text-3xl font-bold'>
+									{isLoadingAlarmCounts ? '...' : behaviorData?.in_progress.count || 0}
+								</h2>
+								<span
+									className={`text-xs font-medium ${
+										behaviorData?.in_progress.delta >= 0 ? 'text-red-500' : 'text-green-500'
+									}`}
+								>
+									{behaviorData?.in_progress.delta >= 0 ? '+' : ''}
+									{behaviorData?.in_progress.delta || 0}%
+								</span>
 							</div>
 							<p className='text-xs text-muted-foreground mt-1'>Đang tiến hành</p>
 						</div>
@@ -114,9 +141,16 @@ export const BehaviorAlertsStats = ({ statusFilter = 'all' }: { statusFilter?: s
 							<p className='text-sm font-medium text-muted-foreground mb-1'>Đã xử lý</p>
 							<div className='flex items-baseline gap-2'>
 								<h2 className='text-3xl font-bold'>
-									{isLoadingResolved ? '...' : resolvedAlerts?.length || 0}
+									{isLoadingAlarmCounts ? '...' : behaviorData?.done.count || 0}
 								</h2>
-								<span className='text-xs font-medium text-green-500'>+15%</span>
+								<span
+									className={`text-xs font-medium ${
+										behaviorData?.done.delta >= 0 ? 'text-red-500' : 'text-green-500'
+									}`}
+								>
+									{behaviorData?.done.delta >= 0 ? '+' : ''}
+									{behaviorData?.done.delta || 0}%
+								</span>
 							</div>
 							<p className='text-xs text-muted-foreground mt-1'>Hoàn thành</p>
 						</div>
@@ -130,6 +164,58 @@ export const BehaviorAlertsStats = ({ statusFilter = 'all' }: { statusFilter?: s
 	);
 };
 
+// Mock behavior alerts for table display since we're removing dependency on BehaviorAlertsService
+// This would be replaced by a real API service in a production environment
+const getMockBehaviorAlerts = (): BehaviorAlert[] => {
+	return [
+		{
+			name: 'BHV-001',
+			loai_vi_pham: 'Sử dụng điện thoại',
+			khu_vuc: 'Khu vực sản xuất A',
+			timestamp: '2025-05-12 08:30:00',
+			department: 'Sản xuất',
+			employee_name: 'Nguyễn Văn A',
+			trang_thai: 'Chưa xử lý',
+		},
+		{
+			name: 'BHV-002',
+			loai_vi_pham: 'Hút thuốc',
+			khu_vuc: 'Khu vực sản xuất B',
+			timestamp: '2025-05-12 09:15:00',
+			department: 'Sản xuất',
+			employee_name: 'Trần Văn B',
+			trang_thai: 'Đã xử lý',
+		},
+		{
+			name: 'BHV-003',
+			loai_vi_pham: 'Đùa giỡn',
+			khu_vuc: 'Khu vực sản xuất C',
+			timestamp: '2025-05-12 10:45:00',
+			department: 'Sản xuất',
+			employee_name: 'Lê Thị C',
+			trang_thai: 'Chưa xử lý',
+		},
+		{
+			name: 'BHV-004',
+			loai_vi_pham: 'Đánh nhau',
+			khu_vuc: 'Khu vực sản xuất A',
+			timestamp: '2025-05-11 14:20:00',
+			department: 'Kỹ thuật',
+			employee_name: 'Phạm Văn D',
+			trang_thai: 'Đang xử lý',
+		},
+		{
+			name: 'BHV-005',
+			loai_vi_pham: 'Sử dụng điện thoại',
+			khu_vuc: 'Khu vực sản xuất D',
+			timestamp: '2025-05-11 15:10:00',
+			department: 'Bảo trì',
+			employee_name: 'Hoàng Văn E',
+			trang_thai: 'Đã xử lý',
+		},
+	];
+};
+
 // Behavior Alerts Table Component - Shows behavior alerts data in a table
 export const BehaviorAlertsTable = ({
 	searchQuery = '',
@@ -140,14 +226,30 @@ export const BehaviorAlertsTable = ({
 	violationTypeFilter?: string;
 	statusFilter?: string;
 }) => {
-	const {
-		data: behaviorAlerts,
-		isLoading: isLoadingAlerts,
-		error: alertsError,
-	} = useQuery({
-		queryKey: ['behaviorAlerts'],
-		queryFn: () => BehaviorAlertsService.getBehaviorAlerts(),
-	});
+	// Use mock data (in production, this would be replaced with a proper API call)
+	const [isLoadingAlerts, setIsLoadingAlerts] = useState(true);
+	const [alertsError, setAlertsError] = useState<Error | null>(null);
+	const [behaviorAlerts, setBehaviorAlerts] = useState<BehaviorAlert[]>([]);
+
+	useEffect(() => {
+		// Simulate API call
+		const fetchData = async () => {
+			try {
+				setIsLoadingAlerts(true);
+				// Simulate network delay
+				await new Promise((resolve) => setTimeout(resolve, 1000));
+				const data = getMockBehaviorAlerts();
+				setBehaviorAlerts(data);
+				setAlertsError(null);
+			} catch (error) {
+				setAlertsError(error as Error);
+			} finally {
+				setIsLoadingAlerts(false);
+			}
+		};
+
+		fetchData();
+	}, []);
 
 	// Filter alerts based on search, violation type, and status
 	const filteredAlerts = behaviorAlerts?.filter((alert) => {
@@ -233,9 +335,6 @@ export const BehaviorAlertsTable = ({
 						<div className='h-6 w-20 bg-gray-200 rounded-full animate-pulse'></div>
 					</TableCell>
 					<TableCell>
-						<div className='h-6 w-20 bg-gray-200 rounded-full animate-pulse'></div>
-					</TableCell>
-					<TableCell>
 						<div className='flex items-center gap-2'>
 							<div className='h-8 w-24 bg-gray-200 rounded animate-pulse'></div>
 							<div className='h-8 w-8 bg-gray-200 rounded animate-pulse'></div>
@@ -267,7 +366,7 @@ export const BehaviorAlertsTable = ({
 				) : alertsError ? (
 					// Show error state
 					<TableRow>
-						<TableCell colSpan={8} className='h-24 text-center'>
+						<TableCell colSpan={7} className='h-24 text-center'>
 							<div className='flex flex-col items-center justify-center py-4'>
 								<AlertTriangle className='h-8 w-8 text-red-500 mb-2' />
 								<div className='text-sm font-medium'>Đã xảy ra lỗi</div>
@@ -340,7 +439,7 @@ export const BehaviorAlertsTable = ({
 				) : (
 					// Show empty state
 					<TableRow>
-						<TableCell colSpan={8} className='h-24 text-center'>
+						<TableCell colSpan={7} className='h-24 text-center'>
 							<div className='flex flex-col items-center justify-center py-4'>
 								<AlertTriangle className='h-8 w-8 text-muted-foreground opacity-40 mb-2' />
 								<div className='text-sm font-medium text-muted-foreground'>Không có vi phạm</div>
@@ -360,10 +459,33 @@ export const BehaviorAlertsTable = ({
 
 // Behavior Type Chart Component - Shows violation type distribution
 export const BehaviorTypeChart = () => {
-	const { data: violationTypeCounts, isLoading: isLoadingCounts } = useQuery({
-		queryKey: ['behaviorViolationCounts'],
-		queryFn: () => BehaviorAlertsService.getViolationTypeCounts(),
-	});
+	// Mock violation type data
+	const [isLoadingCounts, setIsLoadingCounts] = useState(true);
+	const [violationTypeCounts, setViolationTypeCounts] = useState<Record<string, number> | null>(null);
+
+	useEffect(() => {
+		// Simulate API call
+		const fetchData = async () => {
+			try {
+				setIsLoadingCounts(true);
+				// Simulate network delay
+				await new Promise((resolve) => setTimeout(resolve, 1000));
+				// Mock data
+				setViolationTypeCounts({
+					'Sử dụng điện thoại': 15,
+					'Hút thuốc': 8,
+					'Đùa giỡn': 6,
+					'Đánh nhau': 2,
+				});
+			} catch (error) {
+				console.error('Error fetching violation type counts:', error);
+			} finally {
+				setIsLoadingCounts(false);
+			}
+		};
+
+		fetchData();
+	}, []);
 
 	// Calculate violation type distribution for chart
 	const getViolationTypeDistribution = () => {

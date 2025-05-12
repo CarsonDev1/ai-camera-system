@@ -80,7 +80,7 @@ export default function Drawer({ open, onClose, data }: { open: boolean; onClose
 						<h3 className='text-lg font-medium mb-2'>Trạng thái xử lý</h3>
 						<div className='text-sm space-y-2'>
 							<p>
-								<strong>Trạng thái hiện tại:</strong> <Badge variant='outline'>Đang xử lý</Badge>
+								<strong>Trạng thái hiện tại:</strong> <Badge variant='outline'>{data.trang_thai}</Badge>
 							</p>
 							<p>
 								<strong>Người phát hiện:</strong> {data.employee_name}

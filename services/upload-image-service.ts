@@ -4,30 +4,29 @@ interface UploadFileResponse {
   message: any;
   status: 'success' | 'error';
   file_url?: string;
-  docname?: string;
 }
 
 const FileUploadService = {
   /**
    * Uploads a file to the server
    * @param file File to upload
-   * @param doctype Document type (e.g., 'Employee')
-   * @param docname Document name/ID (e.g., 'HR-EMP-00001')
    * @param isPrivate Whether the file should be private (default: false)
    * @returns Promise with the upload response
    */
   uploadFile: async (
     file: File,
-    doctype: string,
-    docname: string,
+    docname: string = '',
     isPrivate: boolean = false
   ): Promise<UploadFileResponse> => {
     // Create form data object
     const formData = new FormData();
     formData.append('file', file);
-    formData.append('doctype', doctype);
-    formData.append('docname', docname);
     formData.append('is_private', isPrivate ? '1' : '0');
+
+
+    if (docname) {
+      formData.append('docname', docname);
+    }
 
     try {
       const response = await api.post<UploadFileResponse>(
@@ -39,6 +38,15 @@ const FileUploadService = {
           }
         }
       );
+
+      // Kiểm tra và format lại phản hồi từ API
+      if (response.data && response.data.message && response.data.message.file_url) {
+        return {
+          message: response.data.message,
+          status: 'success',
+          file_url: response.data.message.file_url
+        };
+      }
 
       return response.data;
     } catch (error) {

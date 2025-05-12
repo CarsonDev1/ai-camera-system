@@ -84,7 +84,7 @@ interface AccessRecord {
 	employeeId: string;
 	department: string;
 	time: string;
-	location: string;
+	location: any;
 	direction: 'in' | 'out';
 	shift: string;
 	custom_late_by_formatted: any;
@@ -154,9 +154,7 @@ const EmployeeCheckinService = {
 			default: 'Cổng chưa xác định',
 		};
 
-		const location = checkin.device_id
-			? locationMap[checkin.device_id] || locationMap['default']
-			: locationMap['default'];
+		const location = checkin.device_id;
 
 		// Determine direction based on log_type or device_id
 		let direction: 'in' | 'out' = 'in';
@@ -519,7 +517,6 @@ export default function AccessMonitoringPage() {
 				record.name.toLowerCase(),
 				record.employeeId.toLowerCase(),
 				record.department.toLowerCase(),
-				record.location.toLowerCase(),
 			];
 			const searchMatch =
 				searchQuery === '' || searchFields.some((field) => field.includes(searchQuery.toLowerCase()));

@@ -4,7 +4,10 @@ export interface ViolationType {
   violation_type: string;
   cnt: number;
   percent: number;
-  weeks: any
+  weeks: any;
+  days: any;
+  months: any
+  intervals: any;
 }
 
 export interface ViolationTypeDistributionData {

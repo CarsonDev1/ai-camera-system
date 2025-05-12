@@ -45,6 +45,7 @@ import DepartmentComplianceCard from '@/components/depart-compliance';
 import { useState } from 'react';
 import { toast } from '@/components/ui/use-toast';
 import { format } from 'date-fns';
+import { IntrusionAlertSummaryContent } from '@/components/intrusion-summary';
 
 export default function DataAnalysisPage() {
 	const [activeTab, setActiveTab] = useState('safety');
@@ -755,62 +756,7 @@ export default function DataAnalysisPage() {
 
 						<div className='grid grid-cols-1 md:grid-cols-2 gap-6'>
 							<Card>
-								<CardHeader>
-									<CardTitle>Tình trạng xử lý cảnh báo an ninh</CardTitle>
-									<CardDescription>Theo dõi tiến độ xử lý các cảnh báo</CardDescription>
-								</CardHeader>
-								<CardContent>
-									<div className='space-y-4'>
-										<div className='p-3 border rounded-lg'>
-											<div className='flex items-center justify-between mb-1'>
-												<div className='flex items-center gap-2'>
-													<div className='h-8 w-8 bg-red-100 rounded-full flex items-center justify-center text-red-600'>
-														<AlertTriangle className='h-4 w-4' />
-													</div>
-													<span className='text-sm font-medium'>Phát hiện người lạ</span>
-												</div>
-												<Badge variant='outline' className='bg-green-50 text-green-700'>
-													Đã xử lý: 6/8
-												</Badge>
-											</div>
-											<div className='mt-2'>
-												<Progress value={75} className='h-2' />
-											</div>
-										</div>
-										<div className='p-3 border rounded-lg'>
-											<div className='flex items-center justify-between mb-1'>
-												<div className='flex items-center gap-2'>
-													<div className='h-8 w-8 bg-yellow-100 rounded-full flex items-center justify-center text-yellow-600'>
-														<Clock className='h-4 w-4' />
-													</div>
-													<span className='text-sm font-medium'>Ra vào ngoài giờ</span>
-												</div>
-												<Badge variant='outline' className='bg-green-50 text-green-700'>
-													Đã xử lý: 22/24
-												</Badge>
-											</div>
-											<div className='mt-2'>
-												<Progress value={92} className='h-2' />
-											</div>
-										</div>
-										<div className='p-3 border rounded-lg'>
-											<div className='flex items-center justify-between mb-1'>
-												<div className='flex items-center gap-2'>
-													<div className='h-8 w-8 bg-blue-100 rounded-full flex items-center justify-center text-blue-600'>
-														<MapPin className='h-4 w-4' />
-													</div>
-													<span className='text-sm font-medium'>Đi vào khu vực cấm</span>
-												</div>
-												<Badge variant='outline' className='bg-yellow-50 text-yellow-700'>
-													Đã xử lý: 8/12
-												</Badge>
-											</div>
-											<div className='mt-2'>
-												<Progress value={67} className='h-2' />
-											</div>
-										</div>
-									</div>
-								</CardContent>
+								<IntrusionAlertSummaryContent />
 							</Card>
 
 							<Card className='opacity-50'>

@@ -393,9 +393,9 @@ function EmployeeDetailsDialog({
 					{/* Thông tin cơ bản */}
 					<div className='flex flex-col items-center space-y-4 pb-6 border-b'>
 						<div className='h-24 w-24 rounded-full bg-primary/10 flex items-center justify-center text-primary'>
-							{employee?.custom_face_images ? (
+							{employee?.custom_face_images1 ? (
 								<Image
-									src={`https://dev4.tadalabs.vn/${employee.custom_face_images}`}
+									src={`https://dev4.tadalabs.vn/${employee.custom_face_images1}`}
 									width={96}
 									height={96}
 									alt='avatar'
@@ -1224,7 +1224,6 @@ function EditEmployeeDialog({
 			cell_number: employee?.cell_number || '',
 			personal_email: employee?.personal_email || '',
 			current_address: employee?.current_address || '',
-			custom_face_images: employee?.custom_face_images || '',
 			custom_face_images1: employee?.custom_face_images1 || '',
 			custom_face_images2: employee?.custom_face_images2 || '',
 			custom_face_images3: employee?.custom_face_images3 || '',
@@ -1247,7 +1246,6 @@ function EditEmployeeDialog({
 				cell_number: employee.cell_number || '',
 				personal_email: employee.personal_email || '',
 				current_address: employee.current_address || '',
-				custom_face_images: employee.custom_face_images || '',
 				custom_face_images1: employee.custom_face_images1 || '',
 				custom_face_images2: employee.custom_face_images2 || '',
 				custom_face_images3: employee.custom_face_images3 || '',
@@ -1257,8 +1255,8 @@ function EditEmployeeDialog({
 			});
 
 			// Set avatar preview if exists
-			if (employee.custom_face_images) {
-				setAvatarPreview(`https://dev4.tadalabs.vn/${employee.custom_face_images}`);
+			if (employee.custom_face_images1) {
+				setAvatarPreview(`https://dev4.tadalabs.vn/${employee.custom_face_images1}`);
 			} else {
 				setAvatarPreview(null);
 			}
@@ -1297,7 +1295,7 @@ function EditEmployeeDialog({
 		const previewUrl = URL.createObjectURL(file);
 		setAvatarPreview(previewUrl);
 		setIsUploading(true);
-		setUploadingField('custom_face_images');
+		setUploadingField('custom_face_images1');
 
 		try {
 			// Upload the file immediately
@@ -1311,7 +1309,7 @@ function EditEmployeeDialog({
 			if (response.message) {
 				// If upload successful, set the file URL in the form
 				const fileUrl = response.message?.file_url;
-				form.setValue('custom_face_images', fileUrl);
+				form.setValue('custom_face_images1', fileUrl);
 				toast({
 					title: 'Tải ảnh thành công',
 					description: 'Ảnh đại diện đã được cập nhật',
@@ -1324,8 +1322,8 @@ function EditEmployeeDialog({
 					variant: 'destructive',
 				});
 				// Reset to previous avatar if there was one
-				if (employee.custom_face_images) {
-					setAvatarPreview(`https://dev4.tadalabs.vn/${employee.custom_face_images}`);
+				if (employee.custom_face_images1) {
+					setAvatarPreview(`https://dev4.tadalabs.vn/${employee.custom_face_images1}`);
 				} else {
 					setAvatarPreview(null);
 				}
@@ -1338,8 +1336,8 @@ function EditEmployeeDialog({
 			});
 			console.error('Error uploading avatar:', error);
 			// Reset to previous avatar if there was one
-			if (employee.custom_face_images) {
-				setAvatarPreview(`https://dev4.tadalabs.vn/${employee.custom_face_images}`);
+			if (employee.custom_face_images1) {
+				setAvatarPreview(`https://dev4.tadalabs.vn/${employee.custom_face_images1}`);
 			} else {
 				setAvatarPreview(null);
 			}
@@ -1446,7 +1444,7 @@ function EditEmployeeDialog({
 						{/* Avatar upload section */}
 						<div className='flex flex-col items-center space-y-4 mb-4'>
 							<div className='h-24 w-24 rounded-full bg-primary/10 flex items-center justify-center text-primary overflow-hidden relative'>
-								{isUploading && uploadingField === 'custom_face_images' ? (
+								{isUploading && uploadingField === 'custom_face_images1' ? (
 									<div className='absolute inset-0 flex items-center justify-center bg-black bg-opacity-30'>
 										<div className='h-8 w-8 animate-spin rounded-full border-2 border-white border-t-transparent'></div>
 									</div>
@@ -1478,7 +1476,7 @@ function EditEmployeeDialog({
 									isUploading ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer hover:underline'
 								}`}
 							>
-								{isUploading && uploadingField === 'custom_face_images'
+								{isUploading && uploadingField === 'custom_face_images1'
 									? 'Đang tải ảnh...'
 									: 'Thay đổi ảnh đại diện'}
 							</label>

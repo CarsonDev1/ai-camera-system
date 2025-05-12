@@ -11,6 +11,12 @@ export interface EmployeeData {
   cell_number: string;
   personal_email: string;
   current_address: string;
+  custom_face_images1?: any;
+  custom_face_images2?: any;
+  custom_face_images3?: any;
+  custom_face_images4?: any;
+  custom_face_images5?: any;
+  custom_face_images6?: any;
 }
 
 export interface EmployeeResponse {
