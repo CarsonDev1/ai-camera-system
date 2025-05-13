@@ -14,8 +14,12 @@ import {
 	DropdownMenuSeparator,
 	DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
+import Drawer from './ui/drawerViolationMonitoring';
 import { Activity, AlertTriangle, Clock, UserCheck, MoreHorizontal, Send, Ban, PieChart } from 'lucide-react';
 import AlarmDashboardService from '@/services/alarm-dashboard-service';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
+import { SafetyAlert } from '@/services/safety-alert-service';
+import ConfirmDialog from './ui/ConfirmDialog';
 
 // Define types for our component
 interface BehaviorAlert {
@@ -74,7 +78,7 @@ export const BehaviorAlertsStats = ({ statusFilter = 'all' }: { statusFilter?: s
 									{behaviorData?.total.delta || 0}%
 								</span>
 							</div>
-							<p className='text-xs text-muted-foreground mt-1'>So với hôm qua</p>
+							<p className='text-xs text-muted-foreground mt-1'>So với tháng trước</p>
 						</div>
 						<div className='h-12 w-12 bg-red-100 rounded-full flex items-center justify-center text-red-600'>
 							<Activity className='h-6 w-6' />
@@ -100,7 +104,7 @@ export const BehaviorAlertsStats = ({ statusFilter = 'all' }: { statusFilter?: s
 									{behaviorData?.pending.delta || 0}%
 								</span>
 							</div>
-							<p className='text-xs text-muted-foreground mt-1'>Cần xử lý</p>
+							<p className='text-xs text-muted-foreground mt-1'>So với tháng trước</p>
 						</div>
 						<div className='h-12 w-12 bg-yellow-100 rounded-full flex items-center justify-center text-yellow-600'>
 							<AlertTriangle className='h-6 w-6' />
@@ -126,7 +130,7 @@ export const BehaviorAlertsStats = ({ statusFilter = 'all' }: { statusFilter?: s
 									{behaviorData?.in_progress.delta || 0}%
 								</span>
 							</div>
-							<p className='text-xs text-muted-foreground mt-1'>Đang tiến hành</p>
+							<p className='text-xs text-muted-foreground mt-1'>So với tháng trước</p>
 						</div>
 						<div className='h-12 w-12 bg-blue-100 rounded-full flex items-center justify-center text-blue-600'>
 							<Clock className='h-6 w-6' />
@@ -152,7 +156,7 @@ export const BehaviorAlertsStats = ({ statusFilter = 'all' }: { statusFilter?: s
 									{behaviorData?.done.delta || 0}%
 								</span>
 							</div>
-							<p className='text-xs text-muted-foreground mt-1'>Hoàn thành</p>
+							<p className='text-xs text-muted-foreground mt-1'>So với tháng trước</p>
 						</div>
 						<div className='h-12 w-12 bg-green-100 rounded-full flex items-center justify-center text-green-600'>
 							<UserCheck className='h-6 w-6' />
@@ -230,6 +234,13 @@ export const BehaviorAlertsTable = ({
 	const [isLoadingAlerts, setIsLoadingAlerts] = useState(true);
 	const [alertsError, setAlertsError] = useState<Error | null>(null);
 	const [behaviorAlerts, setBehaviorAlerts] = useState<BehaviorAlert[]>([]);
+	
+	// Move these state hooks outside of the mapping function
+	const [isDrawerOpen, setIsDrawerOpen] = useState(false);
+	const [selectedAlert, setSelectedAlert] = useState<BehaviorAlert | null>(null);
+	const [isConfirmOpen, setIsConfirmOpen] = useState(false);
+	const [alertToReject, setAlertToReject] = useState<BehaviorAlert | null>(null);
+
 
 	useEffect(() => {
 		// Simulate API call
@@ -308,6 +319,23 @@ export const BehaviorAlertsTable = ({
 		}
 	};
 
+
+	const handleAlertClick = (alert: BehaviorAlert) => {
+		setSelectedAlert(alert);
+		setIsDrawerOpen(true);
+	};
+	const handleRejectAlert = (alert: BehaviorAlert) => () => {
+		setAlertToReject(alert);
+		setIsConfirmOpen(true);
+	};
+	const handleConfirmReject = () => {
+		if (alertToReject) {
+			console.log('Vi phạm bị bác bỏ:', alertToReject);
+		}
+		setIsConfirmOpen(false);
+		setAlertToReject(null);
+	};
+
 	// Render loading skeletons
 	const renderAlertSkeletons = () => (
 		<>
@@ -346,114 +374,134 @@ export const BehaviorAlertsTable = ({
 	);
 
 	return (
-		<Table>
-			<TableHeader>
-				<TableRow>
-					<TableHead>Loại hành vi</TableHead>
-					<TableHead>Người vi phạm</TableHead>
-					<TableHead>Bộ phận</TableHead>
-					<TableHead>Thời gian</TableHead>
-					<TableHead>Vị trí</TableHead>
-					<TableHead>Trạng thái</TableHead>
-					<TableHead>Hành động</TableHead>
-				</TableRow>
-			</TableHeader>
+		<>
+			<Table>
+				<TableHeader>
+					<TableRow>
+						<TableHead>Loại hành vi</TableHead>
+						<TableHead>Người vi phạm</TableHead>
+						<TableHead>Bộ phận</TableHead>
+						<TableHead>Thời gian</TableHead>
+						<TableHead>Vị trí</TableHead>
+						<TableHead>Trạng thái</TableHead>
+						{/* <TableHead>Hành động</TableHead> */}
+					</TableRow>
+				</TableHeader>
 
-			<TableBody>
-				{isLoadingAlerts ? (
-					// Show skeleton loading state
-					renderAlertSkeletons()
-				) : alertsError ? (
-					// Show error state
-					<TableRow>
-						<TableCell colSpan={7} className='h-24 text-center'>
-							<div className='flex flex-col items-center justify-center py-4'>
-								<AlertTriangle className='h-8 w-8 text-red-500 mb-2' />
-								<div className='text-sm font-medium'>Đã xảy ra lỗi</div>
-								<div className='text-xs text-muted-foreground'>
-									Không thể tải dữ liệu vi phạm hành vi. Vui lòng thử lại sau.
-								</div>
-							</div>
-						</TableCell>
-					</TableRow>
-				) : filteredAlerts && filteredAlerts.length > 0 ? (
-					// Show actual data
-					filteredAlerts.map((alert: BehaviorAlert, index) => {
-						const severity = getSeverityFromViolationType(alert.loai_vi_pham);
-						return (
-							<TableRow key={alert.name || `alert-${index}`}>
-								<TableCell>
-									<div className='flex items-center gap-2'>
-										<Ban className='h-4 w-4 text-red-600' />
-										{alert.loai_vi_pham}
+				<TableBody>
+					{isLoadingAlerts ? (
+						// Show skeleton loading state
+						renderAlertSkeletons()
+					) : alertsError ? (
+						// Show error state
+						<TableRow>
+							<TableCell colSpan={7} className='h-24 text-center'>
+								<div className='flex flex-col items-center justify-center py-4'>
+									<AlertTriangle className='h-8 w-8 text-red-500 mb-2' />
+									<div className='text-sm font-medium'>Đã xảy ra lỗi</div>
+									<div className='text-xs text-muted-foreground'>
+										Không thể tải dữ liệu vi phạm hành vi. Vui lòng thử lại sau.
 									</div>
-								</TableCell>
-								<TableCell className='font-medium'>{alert.employee_name || 'Không xác định'}</TableCell>
-								<TableCell>{alert.department || '-'}</TableCell>
-								<TableCell>{formatTimestamp(alert.timestamp)}</TableCell>
-								<TableCell>{alert.khu_vuc || 'Không xác định'}</TableCell>
-								<TableCell>
-									<Badge
-										variant='outline'
-										className={
-											alert.trang_thai === 'Chưa xử lý'
-												? 'bg-red-50 text-red-700'
-												: alert.trang_thai === 'Đang xử lý'
-												? 'bg-yellow-50 text-yellow-700'
-												: 'bg-green-50 text-green-700'
-										}
-									>
-										{alert.trang_thai}
-									</Badge>
-								</TableCell>
-								<TableCell>
-									<div className='flex items-center gap-2'>
-										<Button variant='outline' size='sm' className='h-8 flex items-center gap-1'>
-											<Send className='h-3.5 w-3.5' />
-											<span>Gửi Telegram</span>
-										</Button>
-										<DropdownMenu>
-											<DropdownMenuTrigger asChild>
-												<Button variant='ghost' className='h-8 w-8 p-0' aria-label='Mở menu'>
-													<MoreHorizontal className='h-4 w-4' />
-												</Button>
-											</DropdownMenuTrigger>
-											<DropdownMenuContent align='end'>
-												<DropdownMenuLabel>Hành động</DropdownMenuLabel>
-												<DropdownMenuSeparator />
-												<DropdownMenuItem>Xem chi tiết</DropdownMenuItem>
-												<DropdownMenuItem>Xem hình ảnh</DropdownMenuItem>
-												<DropdownMenuItem>Xử lý vi phạm</DropdownMenuItem>
-												<DropdownMenuItem>
-													{alert.trang_thai === 'Chưa xử lý'
-														? 'Đánh dấu đã xử lý'
-														: 'Đánh dấu chưa xử lý'}
-												</DropdownMenuItem>
-											</DropdownMenuContent>
-										</DropdownMenu>
-									</div>
-								</TableCell>
-							</TableRow>
-						);
-					})
-				) : (
-					// Show empty state
-					<TableRow>
-						<TableCell colSpan={7} className='h-24 text-center'>
-							<div className='flex flex-col items-center justify-center py-4'>
-								<AlertTriangle className='h-8 w-8 text-muted-foreground opacity-40 mb-2' />
-								<div className='text-sm font-medium text-muted-foreground'>Không có vi phạm</div>
-								<div className='text-xs text-muted-foreground'>
-									{searchQuery || violationTypeFilter !== 'all' || statusFilter !== 'all'
-										? 'Không tìm thấy vi phạm phù hợp với điều kiện lọc'
-										: 'Hiện không có vi phạm hành vi nào được ghi nhận'}
 								</div>
-							</div>
-						</TableCell>
-					</TableRow>
-				)}
-			</TableBody>
-		</Table>
+							</TableCell>
+						</TableRow>
+					) : filteredAlerts && filteredAlerts.length > 0 ? (
+						// Show actual data
+						filteredAlerts.map((alert: BehaviorAlert, index) => {
+							const severity = getSeverityFromViolationType(alert.loai_vi_pham);
+							return (
+								<TableRow key={alert.name || `alert-${index}`}>
+									<TableCell>
+										<div className='flex items-center gap-2'>
+											<Ban className='h-4 w-4 text-red-600' />
+											{alert.loai_vi_pham}
+										</div>
+									</TableCell>
+									<TableCell className='font-medium'>{alert.employee_name || 'Không xác định'}</TableCell>
+									<TableCell>{alert.department || '-'}</TableCell>
+									<TableCell>{formatTimestamp(alert.timestamp)}</TableCell>
+									<TableCell>{alert.khu_vuc || 'Không xác định'}</TableCell>
+									<TableCell>
+										<Select defaultValue={alert.trang_thai === 'Đang xử lý' ? 'Chưa xử lý' : alert.trang_thai}>
+											<SelectTrigger className='w-[150px]'>
+												<SelectValue />
+											</SelectTrigger>
+											<SelectContent>
+												<SelectItem value='Chưa xử lý'>
+													<span className='flex items-center gap-2'>
+														<div className='h-2 w-2 rounded-full bg-red-500'></div>
+														Chưa xử lý
+													</span>
+												</SelectItem>
+												<SelectItem value='Đã xử lý'>
+													<span className='flex items-center gap-2'>
+														<div className='h-2 w-2 rounded-full bg-green-500'></div>
+														Đã xử lý
+													</span>
+												</SelectItem>
+											</SelectContent>
+										</Select>
+									</TableCell>
+									<TableCell>
+										<div className='flex items-center gap-2'>
+											{/* <Button variant='outline' size='sm' className='h-8 flex items-center gap-1'>
+												<Send className='h-3.5 w-3.5' />
+												<span>Gửi Telegram</span>
+											</Button> */}
+											<DropdownMenu>
+												<DropdownMenuTrigger asChild>
+													<Button variant='ghost' className='h-8 w-8 p-0' aria-label='Mở menu'>
+														<MoreHorizontal className='h-4 w-4' />
+													</Button>
+												</DropdownMenuTrigger>
+												<DropdownMenuContent align='end'>
+													<DropdownMenuLabel>Hành động</DropdownMenuLabel>
+													<DropdownMenuSeparator />
+													<DropdownMenuItem onClick={() => handleAlertClick(alert)}>Xem chi tiết</DropdownMenuItem>
+													<DropdownMenuItem onClick={handleRejectAlert(alert)}>
+														Bác bỏ vi phạm
+													</DropdownMenuItem>
+												</DropdownMenuContent>
+											</DropdownMenu>
+										</div>
+									</TableCell>
+								</TableRow>
+							);
+						})
+					) : (
+						// Show empty state
+						<TableRow>
+							<TableCell colSpan={7} className='h-24 text-center'>
+								<div className='flex flex-col items-center justify-center py-4'>
+									<AlertTriangle className='h-8 w-8 text-muted-foreground opacity-40 mb-2' />
+									<div className='text-sm font-medium text-muted-foreground'>Không có vi phạm</div>
+									<div className='text-xs text-muted-foreground'>
+										{searchQuery || violationTypeFilter !== 'all' || statusFilter !== 'all'
+											? 'Không tìm thấy vi phạm phù hợp với điều kiện lọc'
+											: 'Hiện không có vi phạm hành vi nào được ghi nhận'}
+									</div>
+								</div>
+							</TableCell>
+						</TableRow>
+					)}
+				</TableBody>
+			</Table>
+			<Drawer
+				onClose={() => setIsDrawerOpen(false)}
+				open={isDrawerOpen}
+				data={selectedAlert}
+			/>
+			<ConfirmDialog
+				open={isConfirmOpen}
+				onConfirm={handleConfirmReject}
+				onCancel={() => {
+				setIsConfirmOpen(false);
+				setAlertToReject(null);
+				}}
+				title='Xác nhận bác bỏ'
+				message={`Bạn có chắc chắn muốn bác bỏ vi phạm: "${alertToReject?.loai_vi_pham}"?`}
+			/>
+		</>
 	);
 };
 
@@ -545,6 +593,7 @@ export const BehaviorTypeChart = () => {
 				// No data state
 				<div className='flex justify-center items-center h-32 text-muted-foreground'>Không có dữ liệu</div>
 			)}
+			
 		</div>
 	);
 };

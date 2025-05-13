@@ -211,9 +211,9 @@ export const SafetyAlertsTable = ({
 		// Search filter
 		const matchesSearch =
 			searchQuery === '' ||
-			alert.loai_vi_pham.toLowerCase().includes(searchQuery.toLowerCase()) ||
-			alert.khu_vuc.toLowerCase().includes(searchQuery.toLowerCase()) ||
-			(alert.employee_name && alert.employee_name.toLowerCase().includes(searchQuery.toLowerCase()));
+			alert?.loai_vi_pham?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+			alert?.khu_vuc?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+			(alert?.employee_name && alert?.employee_name?.toLowerCase().includes(searchQuery.toLowerCase()));
 
 		// Violation type filter
 		const matchesType =

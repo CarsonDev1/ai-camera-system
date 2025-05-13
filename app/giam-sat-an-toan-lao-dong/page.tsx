@@ -43,6 +43,16 @@ import { useQueryClient } from '@tanstack/react-query';
 import SafetyAlertsService from '@/services/safety-alert-service';
 import BehaviorAlertsService from '@/services/behavior-alert-service';
 import { validators } from 'tailwind-merge';
+import { format } from 'date-fns';
+import { vi } from 'date-fns/locale';
+import { Calendar as CalendarIcon } from 'lucide-react';
+import { cn } from '@/lib/utils';
+import { Calendar as CalendarComponent } from '@/components/ui/calendar';
+import {
+	Popover,
+	PopoverContent,
+	PopoverTrigger,
+} from '@/components/ui/popover';
 
 export default function SafetyMonitoringPage() {
 	const searchParams = useSearchParams();
@@ -53,6 +63,7 @@ export default function SafetyMonitoringPage() {
 	const [violationTypeFilter, setViolationTypeFilter] = useState('all');
 	const [statusFilter, setStatusFilter] = useState('all');
 	const [isLoading, setIsLoading] = useState(false);
+	const [date, setDate] = useState<Date>();
 
 	// Get the React Query client for data invalidation
 	const queryClient = useQueryClient();
@@ -307,6 +318,11 @@ export default function SafetyMonitoringPage() {
 		const blob = new Blob([excelBuffer], { type: 'application/octet-stream' });
 		saveAs(blob, `real_time_alerts_${Date.now()}.xlsx`);
 	};
+
+	const handleDateSelect = (selectedDate: Date | undefined) => {
+		setDate(selectedDate);
+	};
+
 	return (
 		<div className='flex flex-col h-full'>
 			<DashboardHeader
@@ -447,10 +463,7 @@ export default function SafetyMonitoringPage() {
 						<div className='space-y-6'>
 							<div className='flex items-center justify-between'>
 								<div className='flex items-center gap-2'>
-									<Button variant='outline'>
-										<Calendar className='h-4 w-4 mr-2' />
-										Chọn ngày
-									</Button>
+									
 									<Button onClick={handleExportExcel}>
 										<Download className='h-4 w-4 mr-2' />
 										Xuất báo cáo
@@ -470,6 +483,28 @@ export default function SafetyMonitoringPage() {
 											</CardDescription>
 										</div>
 										<div className='flex items-center gap-2'>
+											<Popover>
+												<PopoverTrigger asChild>
+													<Button
+														variant='outline'
+														className={cn(
+															' justify-start text-left font-normal',
+															!date && 'text-muted-foreground'
+														)}
+													>
+														<CalendarIcon className='mr-2 h-4 w-4' />
+														{date ? format(date, 'dd/MM/yyyy') : 'Chọn ngày'}
+													</Button>
+												</PopoverTrigger>
+												<PopoverContent className='w-auto p-0' align='start'>
+													<CalendarComponent
+														mode='single'
+														selected={date}
+														onSelect={handleDateSelect}
+														initialFocus
+													/>
+												</PopoverContent>
+											</Popover>
 											<Button variant='outline'>
 												<Eye className='h-4 w-4 mr-2' />
 												Xem trực tiếp
