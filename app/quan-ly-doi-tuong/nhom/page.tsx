@@ -27,6 +27,7 @@ import {
 	AlertCircle,
 	Edit,
 	Trash,
+	Pencil,
 } from 'lucide-react';
 import EmployeeGroupsService from '@/services/employee-group-service';
 import DepartmentService from '@/services/department-service';
@@ -353,7 +354,7 @@ export default function GroupManagementPage() {
 															</Badge>
 														</TableCell>
 														<TableCell>{formatDate(group.created_date)}</TableCell>
-														<TableCell>
+														{/* <TableCell>
 															<div className='flex items-center gap-2'>
 																<Link href='/quan-ly-doi-tuong/them-moi'>
 																	<Button variant='outline' size='sm'>
@@ -362,7 +363,7 @@ export default function GroupManagementPage() {
 																	</Button>
 																</Link>
 															</div>
-														</TableCell>
+														</TableCell> */}
 														<TableCell>
 															<DropdownMenu>
 																<DropdownMenuTrigger asChild>
@@ -543,17 +544,17 @@ export default function GroupManagementPage() {
 														<TableCell className='font-medium'>
 															<div className='flex items-center gap-2'>
 																<Building className='h-5 w-5 text-blue-600' />
-																{department.name}
+																{department.department_name}
 															</div>
 														</TableCell>
 														<TableCell>
 															<div className='flex items-center gap-2'>
-																<Link href='/quan-ly-doi-tuong/them-moi'>
+																{/* <Link href='/quan-ly-doi-tuong/them-moi'>
 																	<Button variant='outline' size='sm'>
 																		<UserPlus className='h-4 w-4 mr-2' />
 																		Thêm thành viên
 																	</Button>
-																</Link>
+																</Link> */}
 																<Button
 																	variant='outline'
 																	size='sm'
@@ -580,27 +581,24 @@ export default function GroupManagementPage() {
 																<DropdownMenuContent align='end'>
 																	<DropdownMenuLabel>Hành động</DropdownMenuLabel>
 																	<DropdownMenuSeparator />
-																	<DropdownMenuItem>
-																		<Link href='/quan-ly-doi-tuong'>
-																			Xem thành viên
-																		</Link>
-																	</DropdownMenuItem>
 																	<DropdownMenuItem
 																		onClick={() =>
 																			openUpdateDepartmentDialog(department)
 																		}
 																	>
-																		Chỉnh sửa
+																		<Button className='bg-white text-black hover:bg-white'>
+																			<Pencil className='mr-2 h-4 w-4' /> Chỉnh
+																			sửa
+																		</Button>
 																	</DropdownMenuItem>
 																	<DropdownMenuItem>
 																		<Button
-																			variant='outline'
-																			size='sm'
 																			onClick={() =>
 																				deleteDepartmentMutation.mutate(
 																					department.name
 																				)
 																			}
+																			className='w-full'
 																		>
 																			<Trash className='mr-2 h-4 w-4' /> Xóa
 																		</Button>

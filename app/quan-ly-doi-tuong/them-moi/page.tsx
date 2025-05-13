@@ -248,7 +248,7 @@ export default function AddObjectPage() {
 	};
 
 	const handleTabChange = (value: any) => {
-		if (value === 'auth' || value === 'access') {
+		if (value === 'auth' || value === 'access' || value === 'face') {
 			setShowPermissionAlert(true);
 			return;
 		}
@@ -306,9 +306,8 @@ export default function AddObjectPage() {
 			/>
 			<div className='p-6 space-y-6 flex-1 overflow-auto'>
 				<Tabs value={activeTab} onValueChange={handleTabChange} className='w-full'>
-					<TabsList className='grid w-full grid-cols-4'>
+					<TabsList className='grid w-full grid-cols-3'>
 						<TabsTrigger value='basic'>Thông tin cơ bản</TabsTrigger>
-						<TabsTrigger value='face'>Khuôn mặt</TabsTrigger>
 						<TabsTrigger value='auth'>Xác thực</TabsTrigger>
 						<TabsTrigger value='access'>Quyền truy cập</TabsTrigger>
 					</TabsList>
@@ -779,70 +778,6 @@ export default function AddObjectPage() {
 									</div>
 								</form>
 							</Form>
-						</Card>
-					</TabsContent>
-
-					<TabsContent value='face' className='mt-6'>
-						<Card>
-							<CardHeader>
-								<CardTitle>Khuôn mặt</CardTitle>
-								<CardDescription>Thêm ảnh khuôn mặt cho đối tượng</CardDescription>
-							</CardHeader>
-							<CardContent className='space-y-6'>
-								<div className='grid grid-cols-1 md:grid-cols-2 gap-6'>
-									<div className='space-y-4'>
-										<div className='border rounded-lg p-4'>
-											<div className='aspect-video bg-gray-100 rounded-md flex items-center justify-center'>
-												<Camera className='h-12 w-12 text-gray-400' />
-											</div>
-											<div className='mt-4 flex justify-center'>
-												<Button>
-													<Camera className='h-4 w-4 mr-2' />
-													Chụp ảnh
-												</Button>
-											</div>
-										</div>
-										<p className='text-sm text-muted-foreground text-center'>
-											Sử dụng camera để chụp ảnh khuôn mặt
-										</p>
-									</div>
-
-									<div className='space-y-4'>
-										<div className='border rounded-lg p-4 h-64 flex flex-col items-center justify-center'>
-											<Upload className='h-12 w-12 text-gray-400 mb-4' />
-											<p className='text-sm text-muted-foreground mb-4'>
-												Kéo và thả ảnh vào đây hoặc nhấn nút bên dưới
-											</p>
-											<Button>
-												<Upload className='h-4 w-4 mr-2' />
-												Tải ảnh lên
-											</Button>
-										</div>
-										<p className='text-sm text-muted-foreground text-center'>
-											Hỗ trợ định dạng: JPG, PNG. Kích thước tối đa: 5MB
-										</p>
-									</div>
-								</div>
-
-								<div className='border rounded-lg p-4'>
-									<h3 className='text-sm font-medium mb-2'>Ảnh đã tải lên (0)</h3>
-									<div className='grid grid-cols-4 gap-4'>
-										{/* Ảnh sẽ hiển thị ở đây */}
-										<div className='aspect-square bg-gray-100 rounded-md flex items-center justify-center'>
-											<p className='text-sm text-gray-400'>Chưa có ảnh</p>
-										</div>
-									</div>
-								</div>
-
-								<Alert variant='destructive' className='bg-yellow-50 border-yellow-200'>
-									<AlertCircle className='h-4 w-4 text-yellow-800' />
-									<AlertTitle className='text-yellow-800 font-semibold'>Lưu ý</AlertTitle>
-									<AlertDescription className='text-yellow-800'>
-										Để đảm bảo độ chính xác cao nhất, vui lòng tải lên ít nhất 3 ảnh khuôn mặt ở các
-										góc độ khác nhau.
-									</AlertDescription>
-								</Alert>
-							</CardContent>
 						</Card>
 					</TabsContent>
 
