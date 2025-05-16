@@ -48,11 +48,7 @@ import { vi } from 'date-fns/locale';
 import { Calendar as CalendarIcon } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Calendar as CalendarComponent } from '@/components/ui/calendar';
-import {
-	Popover,
-	PopoverContent,
-	PopoverTrigger,
-} from '@/components/ui/popover';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 
 export default function SafetyMonitoringPage() {
 	const searchParams = useSearchParams();
@@ -65,8 +61,14 @@ export default function SafetyMonitoringPage() {
 	const [isLoading, setIsLoading] = useState(false);
 	const [date, setDate] = useState<Date>();
 
+	const [selectedDate, setSelectedDate] = useState<Date | undefined>(undefined);
+
 	// Get the React Query client for data invalidation
 	const queryClient = useQueryClient();
+
+	const resetDateFilter = () => {
+		setSelectedDate(undefined);
+	};
 
 	useEffect(() => {
 		if (tabParam !== activeTab) {
@@ -126,22 +128,12 @@ export default function SafetyMonitoringPage() {
 				// Stats data for Behavior tab
 				...(activeTab === 'giam-sat-vi-pham'
 					? [
-						queryClient.fetchQuery({
-							queryKey: ['behaviorAlerts'],
-							queryFn: () => BehaviorAlertsService.getBehaviorAlerts(1, 5, true),
-							staleTime: 0,
-						}),
-						queryClient.fetchQuery({
-							queryKey: ['pendingBehaviorAlerts'],
-							queryFn: () => BehaviorAlertsService.getPendingBehaviorAlerts(),
-							staleTime: 0,
-						}),
-						queryClient.fetchQuery({
-							queryKey: ['resolvedBehaviorAlerts'],
-							queryFn: () => BehaviorAlertsService.getResolvedBehaviorAlerts(),
-							staleTime: 0,
-						}),
-					]
+							queryClient.fetchQuery({
+								queryKey: ['behaviorAlerts'],
+								queryFn: () => BehaviorAlertsService.getBehaviorAlerts(1, 5, true),
+								staleTime: 0,
+							}),
+					  ]
 					: []),
 			]);
 
@@ -297,7 +289,6 @@ export default function SafetyMonitoringPage() {
 		},
 	];
 
-
 	const handleExportExcel = () => {
 		const worksheetData = violations.map((record) => ({
 			'Loại vi phạm': record.type,
@@ -336,19 +327,21 @@ export default function SafetyMonitoringPage() {
 					<div className='grid grid-cols-2 relative z-10'>
 						<button
 							onClick={() => handleTabChange('bao-ho-lao-dong')}
-							className={`py-3 px-6 text-center font-medium transition-all duration-300 ${activeTab === 'bao-ho-lao-dong'
-								? 'text-foreground'
-								: 'text-muted-foreground hover:text-foreground/80'
-								}`}
+							className={`py-3 px-6 text-center font-medium transition-all duration-300 ${
+								activeTab === 'bao-ho-lao-dong'
+									? 'text-foreground'
+									: 'text-muted-foreground hover:text-foreground/80'
+							}`}
 						>
 							Bảo hộ lao động
 						</button>
 						<button
 							onClick={() => handleTabChange('giam-sat-vi-pham')}
-							className={`py-3 px-6 text-center font-medium transition-all duration-300 ${activeTab === 'giam-sat-vi-pham'
-								? 'text-foreground'
-								: 'text-muted-foreground hover:text-foreground/80'
-								}`}
+							className={`py-3 px-6 text-center font-medium transition-all duration-300 ${
+								activeTab === 'giam-sat-vi-pham'
+									? 'text-foreground'
+									: 'text-muted-foreground hover:text-foreground/80'
+							}`}
 						>
 							Giám sát vi phạm
 						</button>
@@ -370,8 +363,9 @@ export default function SafetyMonitoringPage() {
 
 				<div className='relative'>
 					<div
-						className={`space-y-6 transition-all duration-300 ${activeTab === 'bao-ho-lao-dong' ? 'block' : 'hidden  pointer-events-none'
-							}`}
+						className={`space-y-6 transition-all duration-300 ${
+							activeTab === 'bao-ho-lao-dong' ? 'block' : 'hidden  pointer-events-none'
+						}`}
 					>
 						<div className='space-y-6'>
 							<SafetyAlertsStats />
@@ -403,6 +397,42 @@ export default function SafetyMonitoringPage() {
 											</div>
 										</div>
 										<div className='flex items-center gap-2'>
+											{/* Date picker moved here but preserving functionality */}
+											<Popover>
+												<PopoverTrigger asChild>
+													<Button
+														variant='outline'
+														className={cn(
+															'justify-start text-left font-normal',
+															!selectedDate && 'text-muted-foreground'
+														)}
+													>
+														<Calendar className='mr-2 h-4 w-4' />
+														{selectedDate
+															? format(selectedDate, 'dd/MM/yyyy', { locale: vi })
+															: 'Chọn ngày'}
+													</Button>
+												</PopoverTrigger>
+												<PopoverContent className='w-auto p-0' align='start'>
+													<CalendarComponent
+														mode='single'
+														selected={selectedDate}
+														onSelect={setSelectedDate}
+														locale={vi}
+														initialFocus
+													/>
+												</PopoverContent>
+											</Popover>
+											{selectedDate && (
+												<Button
+													variant='ghost'
+													size='sm'
+													onClick={resetDateFilter}
+													className='text-muted-foreground hover:text-foreground'
+												>
+													Xóa lọc
+												</Button>
+											)}
 											<Select
 												defaultValue='all'
 												value={violationTypeFilter}
@@ -427,6 +457,7 @@ export default function SafetyMonitoringPage() {
 										<SafetyAlertsTable
 											searchQuery={searchQuery}
 											violationTypeFilter={violationTypeFilter}
+											selectedDate={selectedDate}
 										/>
 									</div>
 								</CardContent>
@@ -457,13 +488,13 @@ export default function SafetyMonitoringPage() {
 					</div>
 
 					<div
-						className={`space-y-6 transition-all duration-300 ${activeTab === 'giam-sat-vi-pham' ? 'block' : 'hidden pointer-events-none'
-							}`}
+						className={`space-y-6 transition-all duration-300 ${
+							activeTab === 'giam-sat-vi-pham' ? 'block' : 'hidden pointer-events-none'
+						}`}
 					>
 						<div className='space-y-6'>
 							<div className='flex items-center justify-between'>
 								<div className='flex items-center gap-2'>
-									
 									<Button onClick={handleExportExcel}>
 										<Download className='h-4 w-4 mr-2' />
 										Xuất báo cáo
@@ -529,23 +560,81 @@ export default function SafetyMonitoringPage() {
 										<div className='flex items-center gap-2'>
 											<Select
 												defaultValue='all'
-												value={violationTypeFilter}
-												onValueChange={setViolationTypeFilter}
+												value={statusFilter}
+												onValueChange={setStatusFilter}
 											>
 												<SelectTrigger className='w-[180px]'>
-													<SelectValue placeholder='Tất cả' />
+													<SelectValue placeholder='Trạng thái' />
 												</SelectTrigger>
 												<SelectContent>
 													<SelectItem value='all'>Tất cả</SelectItem>
-													<SelectItem value='phone'>Sử dụng điện thoại</SelectItem>
-													<SelectItem value='smoking'>Hút thuốc</SelectItem>
-													<SelectItem value='fighting'>Đánh nhau</SelectItem>
-													<SelectItem value='playing'>Đùa giỡn</SelectItem>
+													<SelectItem value='pending'>Chưa xử lý</SelectItem>
+													<SelectItem value='in_progress'>Đang xử lý</SelectItem>
+													<SelectItem value='done'>Đã xử lý</SelectItem>
 												</SelectContent>
 											</Select>
-											<Button variant='outline' size='icon'>
-												<Filter className='h-4 w-4' />
-											</Button>
+
+											<Popover>
+												<PopoverTrigger asChild>
+													<Button variant='outline' size='icon'>
+														<Filter className='h-4 w-4' />
+													</Button>
+												</PopoverTrigger>
+												<PopoverContent className='w-80'>
+													<div className='space-y-4'>
+														<h4 className='font-medium'>Lọc kết quả</h4>
+
+														<div className='space-y-2'>
+															<h5 className='text-sm font-medium'>Loại hành vi</h5>
+															<Select
+																defaultValue='all'
+																value={violationTypeFilter}
+																onValueChange={setViolationTypeFilter}
+															>
+																<SelectTrigger className='w-full'>
+																	<SelectValue placeholder='Tất cả loại hành vi' />
+																</SelectTrigger>
+																<SelectContent>
+																	<SelectItem value='all'>
+																		Tất cả loại hành vi
+																	</SelectItem>
+																	<SelectItem value='phone'>
+																		Sử dụng điện thoại
+																	</SelectItem>
+																	<SelectItem value='smoking'>Hút thuốc</SelectItem>
+																	<SelectItem value='fighting'>Đánh nhau</SelectItem>
+																	<SelectItem value='playing'>Đùa giỡn</SelectItem>
+																</SelectContent>
+															</Select>
+														</div>
+
+														<div className='space-y-2'>
+															<h5 className='text-sm font-medium'>Bộ phận</h5>
+															<Select defaultValue='all'>
+																<SelectTrigger className='w-full'>
+																	<SelectValue placeholder='Tất cả bộ phận' />
+																</SelectTrigger>
+																<SelectContent>
+																	<SelectItem value='all'>Tất cả bộ phận</SelectItem>
+																	<SelectItem value='production'>Sản xuất</SelectItem>
+																	<SelectItem value='maintenance'>Bảo trì</SelectItem>
+																	<SelectItem value='technical'>Kỹ thuật</SelectItem>
+																	<SelectItem value='administration'>
+																		Hành chính
+																	</SelectItem>
+																</SelectContent>
+															</Select>
+														</div>
+
+														<div className='flex items-center justify-between pt-2'>
+															<Button variant='outline' size='sm'>
+																Đặt lại
+															</Button>
+															<Button size='sm'>Áp dụng</Button>
+														</div>
+													</div>
+												</PopoverContent>
+											</Popover>
 										</div>
 									</div>
 									<div className='rounded-md border overflow-auto'>
@@ -557,58 +646,6 @@ export default function SafetyMonitoringPage() {
 									</div>
 								</CardContent>
 							</Card>
-
-							{/* <div className='grid grid-cols-1 md:grid-cols-2 gap-6'>
-								<Card>
-									<CardHeader className='flex flex-row items-center justify-between'>
-										<div>
-											<CardTitle>Thống kê theo loại hành vi</CardTitle>
-											<CardDescription>Phân bố các loại hành vi vi phạm</CardDescription>
-										</div>
-										<PieChart className='h-4 w-4 text-muted-foreground' />
-									</CardHeader>
-									<CardContent>
-										<BehaviorTypeChart />
-									</CardContent>
-								</Card>
-
-								<Card>
-									<CardHeader className='flex flex-row items-center justify-between'>
-										<div>
-											<CardTitle>Xu hướng vi phạm</CardTitle>
-											<CardDescription>Thống kê vi phạm theo thời gian</CardDescription>
-										</div>
-										<LineChart className='h-4 w-4 text-muted-foreground' />
-									</CardHeader>
-									<CardContent>
-										<div className='h-[200px] relative'>
-											<div className='absolute inset-x-0 bottom-0 h-[1px] bg-border'></div>
-											<div className='absolute inset-y-0 left-0 w-[1px] bg-border'></div>
-											<div className='flex justify-center items-center h-[180px]'>
-												<div className='relative'>Chưa có dữ liệu</div>
-											</div>
-											<div className='absolute bottom-[-20px] left-0 right-0 flex justify-between text-xs text-muted-foreground'>
-												<span>T1</span>
-												<span>T2</span>
-												<span>T3</span>
-												<span>T4</span>
-												<span>T5</span>
-												<span>T6</span>
-											</div>
-										</div>
-										<div className='flex items-center justify-center gap-6 mt-8'>
-											<div className='flex items-center gap-2'>
-												<div className='h-3 w-3 bg-red-500 rounded-full'></div>
-												<span className='text-sm'>Hành vi cấm</span>
-											</div>
-											<div className='flex items-center gap-2'>
-												<div className='h-3 w-3 bg-blue-500 rounded-full'></div>
-												<span className='text-sm'>Sử dụng điện thoại</span>
-											</div>
-										</div>
-									</CardContent>
-								</Card>
-							</div> */}
 						</div>
 					</div>
 				</div>

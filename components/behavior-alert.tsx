@@ -20,6 +20,7 @@ import AlarmDashboardService from '@/services/alarm-dashboard-service';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
 import { SafetyAlert } from '@/services/safety-alert-service';
 import ConfirmDialog from './ui/ConfirmDialog';
+import BehaviorAlertService from '@/services/behavior-alert-service';
 
 // Define types for our component
 interface BehaviorAlert {
@@ -221,6 +222,7 @@ const getMockBehaviorAlerts = (): BehaviorAlert[] => {
 };
 
 // Behavior Alerts Table Component - Shows behavior alerts data in a table
+// Behavior Alerts Table Component - Shows behavior alerts data in a table
 export const BehaviorAlertsTable = ({
 	searchQuery = '',
 	violationTypeFilter = 'all',
@@ -230,65 +232,60 @@ export const BehaviorAlertsTable = ({
 	violationTypeFilter?: string;
 	statusFilter?: string;
 }) => {
-	// Use mock data (in production, this would be replaced with a proper API call)
-	const [isLoadingAlerts, setIsLoadingAlerts] = useState(true);
-	const [alertsError, setAlertsError] = useState<Error | null>(null);
-	const [behaviorAlerts, setBehaviorAlerts] = useState<BehaviorAlert[]>([]);
-	
-	// Move these state hooks outside of the mapping function
+	// State for pagination
+	const [currentPage, setCurrentPage] = useState(1);
+	const [pageSize, setPageSize] = useState(5);
+
+	// State for drawer and confirm dialog
 	const [isDrawerOpen, setIsDrawerOpen] = useState(false);
 	const [selectedAlert, setSelectedAlert] = useState<BehaviorAlert | null>(null);
 	const [isConfirmOpen, setIsConfirmOpen] = useState(false);
 	const [alertToReject, setAlertToReject] = useState<BehaviorAlert | null>(null);
 
-
-	useEffect(() => {
-		// Simulate API call
-		const fetchData = async () => {
-			try {
-				setIsLoadingAlerts(true);
-				// Simulate network delay
-				await new Promise((resolve) => setTimeout(resolve, 1000));
-				const data = getMockBehaviorAlerts();
-				setBehaviorAlerts(data);
-				setAlertsError(null);
-			} catch (error) {
-				setAlertsError(error as Error);
-			} finally {
-				setIsLoadingAlerts(false);
-			}
-		};
-
-		fetchData();
-	}, []);
+	// Use React Query to fetch data
+	const {
+		data: behaviorAlertsData,
+		isLoading: isLoadingAlerts,
+		error: alertsError,
+		refetch,
+	} = useQuery({
+		queryKey: ['behaviorAlerts', currentPage, pageSize],
+		queryFn: () => BehaviorAlertService.getBehaviorAlerts(currentPage, pageSize),
+	});
 
 	// Filter alerts based on search, violation type, and status
-	const filteredAlerts = behaviorAlerts?.filter((alert) => {
-		// Search filter
-		const matchesSearch =
-			searchQuery === '' ||
-			alert.loai_vi_pham.toLowerCase().includes(searchQuery.toLowerCase()) ||
-			(alert.khu_vuc && alert.khu_vuc.toLowerCase().includes(searchQuery.toLowerCase())) ||
-			(alert.employee_name && alert.employee_name.toLowerCase().includes(searchQuery.toLowerCase())) ||
-			(alert.department && alert.department.toLowerCase().includes(searchQuery.toLowerCase()));
+	const filteredAlerts =
+		behaviorAlertsData?.data?.filter((alert) => {
+			// Search filter
+			const matchesSearch =
+				searchQuery === '' ||
+				alert.loai_vi_pham.toLowerCase().includes(searchQuery.toLowerCase()) ||
+				(alert.khu_vuc && alert.khu_vuc.toLowerCase().includes(searchQuery.toLowerCase())) ||
+				(alert.employee_name && alert.employee_name.toLowerCase().includes(searchQuery.toLowerCase())) ||
+				(alert.department && alert.department.toLowerCase().includes(searchQuery.toLowerCase()));
 
-		// Violation type filter
-		const matchesType =
-			violationTypeFilter === 'all' ||
-			(violationTypeFilter === 'phone' && alert.loai_vi_pham.includes('điện thoại')) ||
-			(violationTypeFilter === 'smoking' && alert.loai_vi_pham.includes('Hút thuốc')) ||
-			(violationTypeFilter === 'fighting' && alert.loai_vi_pham.includes('Đánh nhau')) ||
-			(violationTypeFilter === 'playing' && alert.loai_vi_pham.includes('Đùa giỡn'));
+			// Violation type filter
+			const matchesType =
+				violationTypeFilter === 'all' ||
+				(violationTypeFilter === 'phone' && alert.loai_vi_pham.includes('điện thoại')) ||
+				(violationTypeFilter === 'smoking' && alert.loai_vi_pham.includes('Hút thuốc')) ||
+				(violationTypeFilter === 'fighting' && alert.loai_vi_pham.includes('Đánh nhau')) ||
+				(violationTypeFilter === 'playing' && alert.loai_vi_pham.includes('Đùa giỡn'));
 
-		// Status filter
-		const matchesStatus =
-			statusFilter === 'all' ||
-			(statusFilter === 'pending' && alert.trang_thai === 'Chưa xử lý') ||
-			(statusFilter === 'processing' && alert.trang_thai === 'Đang xử lý') ||
-			(statusFilter === 'processed' && alert.trang_thai === 'Đã xử lý');
+			// Status filter
+			const matchesStatus =
+				statusFilter === 'all' ||
+				(statusFilter === 'pending' && alert.trang_thai === 'Chưa xử lý') ||
+				(statusFilter === 'processing' && alert.trang_thai === 'Đang xử lý') ||
+				(statusFilter === 'processed' && alert.trang_thai === 'Đã xử lý');
 
-		return matchesSearch && matchesType && matchesStatus;
-	});
+			return matchesSearch && matchesType && matchesStatus;
+		}) || [];
+
+	// Refetch when filters change
+	useEffect(() => {
+		refetch();
+	}, [searchQuery, violationTypeFilter, statusFilter, refetch]);
 
 	// Get severity level based on violation type
 	const getSeverityFromViolationType = (type: string): 'high' | 'medium' | 'low' => {
@@ -319,15 +316,16 @@ export const BehaviorAlertsTable = ({
 		}
 	};
 
-
 	const handleAlertClick = (alert: BehaviorAlert) => {
 		setSelectedAlert(alert);
 		setIsDrawerOpen(true);
 	};
+
 	const handleRejectAlert = (alert: BehaviorAlert) => () => {
 		setAlertToReject(alert);
 		setIsConfirmOpen(true);
 	};
+
 	const handleConfirmReject = () => {
 		if (alertToReject) {
 			console.log('Vi phạm bị bác bỏ:', alertToReject);
@@ -373,6 +371,41 @@ export const BehaviorAlertsTable = ({
 		</>
 	);
 
+	// Render pagination
+	const totalItems = behaviorAlertsData?.total || 0;
+	const totalPages = Math.ceil(totalItems / pageSize);
+
+	const renderPageNumbers = () => {
+		if (totalPages <= 1) return null;
+
+		const pages = [];
+		const maxVisiblePages = 5;
+
+		let startPage = Math.max(1, currentPage - Math.floor(maxVisiblePages / 2));
+		let endPage = Math.min(totalPages, startPage + maxVisiblePages - 1);
+
+		// Adjust start page if we're showing less than maxVisiblePages
+		if (endPage - startPage + 1 < maxVisiblePages) {
+			startPage = Math.max(1, endPage - maxVisiblePages + 1);
+		}
+
+		for (let i = startPage; i <= endPage; i++) {
+			pages.push(
+				<Button
+					key={i}
+					variant={i === currentPage ? 'default' : 'outline'}
+					size='sm'
+					onClick={() => setCurrentPage(i)}
+					className='w-8 h-8 p-0'
+				>
+					{i}
+				</Button>
+			);
+		}
+
+		return <div className='flex gap-1'>{pages}</div>;
+	};
+
 	return (
 		<>
 			<Table>
@@ -384,7 +417,7 @@ export const BehaviorAlertsTable = ({
 						<TableHead>Thời gian</TableHead>
 						<TableHead>Vị trí</TableHead>
 						<TableHead>Trạng thái</TableHead>
-						{/* <TableHead>Hành động</TableHead> */}
+						<TableHead>Hành động</TableHead>
 					</TableRow>
 				</TableHeader>
 
@@ -417,12 +450,18 @@ export const BehaviorAlertsTable = ({
 											{alert.loai_vi_pham}
 										</div>
 									</TableCell>
-									<TableCell className='font-medium'>{alert.employee_name || 'Không xác định'}</TableCell>
+									<TableCell className='font-medium'>
+										{alert.employee_name || 'Không xác định'}
+									</TableCell>
 									<TableCell>{alert.department || '-'}</TableCell>
 									<TableCell>{formatTimestamp(alert.timestamp)}</TableCell>
 									<TableCell>{alert.khu_vuc || 'Không xác định'}</TableCell>
 									<TableCell>
-										<Select defaultValue={alert.trang_thai === 'Đang xử lý' ? 'Chưa xử lý' : alert.trang_thai}>
+										<Select
+											defaultValue={
+												alert.trang_thai === 'Đang xử lý' ? 'Chưa xử lý' : alert.trang_thai
+											}
+										>
 											<SelectTrigger className='w-[150px]'>
 												<SelectValue />
 											</SelectTrigger>
@@ -444,20 +483,22 @@ export const BehaviorAlertsTable = ({
 									</TableCell>
 									<TableCell>
 										<div className='flex items-center gap-2'>
-											{/* <Button variant='outline' size='sm' className='h-8 flex items-center gap-1'>
-												<Send className='h-3.5 w-3.5' />
-												<span>Gửi Telegram</span>
-											</Button> */}
 											<DropdownMenu>
 												<DropdownMenuTrigger asChild>
-													<Button variant='ghost' className='h-8 w-8 p-0' aria-label='Mở menu'>
+													<Button
+														variant='ghost'
+														className='h-8 w-8 p-0'
+														aria-label='Mở menu'
+													>
 														<MoreHorizontal className='h-4 w-4' />
 													</Button>
 												</DropdownMenuTrigger>
 												<DropdownMenuContent align='end'>
 													<DropdownMenuLabel>Hành động</DropdownMenuLabel>
 													<DropdownMenuSeparator />
-													<DropdownMenuItem onClick={() => handleAlertClick(alert)}>Xem chi tiết</DropdownMenuItem>
+													<DropdownMenuItem onClick={() => handleAlertClick(alert)}>
+														Xem chi tiết
+													</DropdownMenuItem>
 													<DropdownMenuItem onClick={handleRejectAlert(alert)}>
 														Bác bỏ vi phạm
 													</DropdownMenuItem>
@@ -486,17 +527,47 @@ export const BehaviorAlertsTable = ({
 					)}
 				</TableBody>
 			</Table>
-			<Drawer
-				onClose={() => setIsDrawerOpen(false)}
-				open={isDrawerOpen}
-				data={selectedAlert}
-			/>
+
+			{/* Pagination Controls */}
+			{!isLoadingAlerts && !alertsError && behaviorAlertsData && (
+				<div className='flex items-center justify-between space-x-2 py-4 px-2'>
+					<div className='text-sm text-muted-foreground'>
+						{totalItems > 0 ? (
+							<>
+								Hiển thị {(currentPage - 1) * pageSize + 1}-
+								{Math.min(currentPage * pageSize, totalItems)} trong số {totalItems} vi phạm
+							</>
+						) : (
+							<>Không có vi phạm</>
+						)}
+					</div>
+					<div className='flex items-center space-x-2'>{renderPageNumbers()}</div>
+					<div className='flex items-center space-x-2'>
+						<select
+							className='h-8 rounded-md border border-input bg-background px-2 text-xs'
+							value={pageSize}
+							onChange={(e) => {
+								setPageSize(Number(e.target.value));
+								setCurrentPage(1); // Reset to first page when changing page size
+							}}
+						>
+							{[5, 10, 20, 50].map((size) => (
+								<option key={size} value={size}>
+									{size} / trang
+								</option>
+							))}
+						</select>
+					</div>
+				</div>
+			)}
+
+			<Drawer onClose={() => setIsDrawerOpen(false)} open={isDrawerOpen} data={selectedAlert} />
 			<ConfirmDialog
 				open={isConfirmOpen}
 				onConfirm={handleConfirmReject}
 				onCancel={() => {
-				setIsConfirmOpen(false);
-				setAlertToReject(null);
+					setIsConfirmOpen(false);
+					setAlertToReject(null);
 				}}
 				title='Xác nhận bác bỏ'
 				message={`Bạn có chắc chắn muốn bác bỏ vi phạm: "${alertToReject?.loai_vi_pham}"?`}
@@ -593,7 +664,6 @@ export const BehaviorTypeChart = () => {
 				// No data state
 				<div className='flex justify-center items-center h-32 text-muted-foreground'>Không có dữ liệu</div>
 			)}
-			
 		</div>
 	);
 };

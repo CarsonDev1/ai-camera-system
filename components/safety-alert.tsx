@@ -159,9 +159,11 @@ export const SafetyAlertsStats = () => {
 export const SafetyAlertsTable = ({
 	searchQuery = '',
 	violationTypeFilter = 'all',
+	selectedDate,
 }: {
 	searchQuery?: string;
 	violationTypeFilter?: string;
+	selectedDate?: Date;
 }) => {
 	// Add pagination state
 	const [currentPage, setCurrentPage] = useState(1);
@@ -169,7 +171,6 @@ export const SafetyAlertsTable = ({
 	const [totalItems, setTotalItems] = useState(0);
 
 	// Add date filter state
-	const [selectedDate, setSelectedDate] = useState<Date | undefined>(undefined);
 
 	const handleStatusChange = (logIndex: number, newStatus: string) => {};
 
@@ -251,11 +252,6 @@ export const SafetyAlertsTable = ({
 		}
 		refetch();
 	}, [searchQuery, violationTypeFilter, selectedDate, refetch]);
-
-	// Reset date filter
-	const resetDateFilter = () => {
-		setSelectedDate(undefined);
-	};
 
 	// Get severity level based on violation type
 	const getSeverityFromViolationType = (type: string): 'high' | 'medium' | 'low' => {
@@ -381,45 +377,6 @@ export const SafetyAlertsTable = ({
 
 	return (
 		<div className='flex flex-col'>
-			{/* Date filter button */}
-			<div className='mb-4 flex justify-between items-center'>
-				<div className='flex items-center gap-2'>
-					<Popover>
-						<PopoverTrigger asChild>
-							<Button
-								variant='outline'
-								className={cn(
-									'justify-start text-left font-normal',
-									!selectedDate && 'text-muted-foreground'
-								)}
-							>
-								<Calendar className='mr-2 h-4 w-4' />
-								{selectedDate ? format(selectedDate, 'dd/MM/yyyy', { locale: vi }) : 'Chọn ngày'}
-							</Button>
-						</PopoverTrigger>
-						<PopoverContent className='w-auto p-0' align='start'>
-							<CalendarComponent
-								mode='single'
-								selected={selectedDate}
-								onSelect={setSelectedDate}
-								locale={vi}
-								initialFocus
-							/>
-						</PopoverContent>
-					</Popover>
-					{selectedDate && (
-						<Button
-							variant='ghost'
-							size='sm'
-							onClick={resetDateFilter}
-							className='text-muted-foreground hover:text-foreground'
-						>
-							Xóa lọc
-						</Button>
-					)}
-				</div>
-			</div>
-
 			<Table>
 				<TableHeader>
 					<TableRow>
