@@ -289,7 +289,8 @@ export default function SafetyMonitoringPage() {
 		},
 	];
 
-	const handleExportExcel = () => {
+	// Export function for behavior violations
+	const handleExportBehaviorViolations = () => {
 		const worksheetData = violations.map((record) => ({
 			'Loại vi phạm': record.type,
 			'Người vi phạm': record.person,
@@ -308,6 +309,26 @@ export default function SafetyMonitoringPage() {
 		const excelBuffer = XLSX.write(workbook, { bookType: 'xlsx', type: 'array' });
 		const blob = new Blob([excelBuffer], { type: 'application/octet-stream' });
 		saveAs(blob, `real_time_alerts_${Date.now()}.xlsx`);
+	};
+
+	// Export function for safety violations
+	const handleExportSafetyViolations = () => {
+		const worksheetData = safetyEquipment.map((record) => ({
+			'Loại vi phạm': record.type,
+			'Vị trí': record.location,
+			'Thời gian': record.time,
+			'Người vi phạm': record.person,
+			'Mức độ': record.severity,
+			'Trạng thái': record.status,
+		}));
+
+		const worksheet = XLSX.utils.json_to_sheet(worksheetData);
+		const workbook = XLSX.utils.book_new();
+		XLSX.utils.book_append_sheet(workbook, worksheet, 'Bảo hộ lao động');
+
+		const excelBuffer = XLSX.write(workbook, { bookType: 'xlsx', type: 'array' });
+		const blob = new Blob([excelBuffer], { type: 'application/octet-stream' });
+		saveAs(blob, `safety_equipment_violations_${Date.now()}.xlsx`);
 	};
 
 	const handleDateSelect = (selectedDate: Date | undefined) => {
@@ -368,6 +389,16 @@ export default function SafetyMonitoringPage() {
 						}`}
 					>
 						<div className='space-y-6'>
+							{/* Added Export Report button for Safety Equipment tab */}
+							<div className='flex items-center justify-between'>
+								<div className='flex items-center gap-2'>
+									<Button onClick={handleExportSafetyViolations}>
+										<Download className='h-4 w-4 mr-2' />
+										Xuất báo cáo
+									</Button>
+								</div>
+							</div>
+
 							<SafetyAlertsStats />
 
 							<Card>
@@ -439,18 +470,81 @@ export default function SafetyMonitoringPage() {
 												onValueChange={setViolationTypeFilter}
 											>
 												<SelectTrigger className='w-[180px]'>
-													<SelectValue placeholder='Loại vi phạm' />
+													<SelectValue placeholder='Trạng thái' />
 												</SelectTrigger>
 												<SelectContent>
 													<SelectItem value='all'>Tất cả</SelectItem>
-													<SelectItem value='safety'>An toàn lao động</SelectItem>
-													<SelectItem value='security'>An ninh</SelectItem>
-													<SelectItem value='behavior'>Hành vi</SelectItem>
+													<SelectItem value='pending'>Chưa xử lý</SelectItem>
+													<SelectItem value='done'>Đã xử lý</SelectItem>
 												</SelectContent>
 											</Select>
-											<Button variant='outline' size='icon'>
-												<Filter className='h-4 w-4' />
-											</Button>
+											<Popover>
+												<PopoverTrigger asChild>
+													<Button variant='outline' size='icon'>
+														<Filter className='h-4 w-4' />
+													</Button>
+												</PopoverTrigger>
+												<PopoverContent className='w-80'>
+													<div className='space-y-4'>
+														<h4 className='font-medium'>Lọc kết quả</h4>
+
+														<div className='space-y-2'>
+															<h5 className='text-sm font-medium'>Loại vi phạm</h5>
+															<Select
+																defaultValue='all'
+																value={violationTypeFilter}
+																onValueChange={setViolationTypeFilter}
+															>
+																<SelectTrigger className='w-full'>
+																	<SelectValue placeholder='Tất cả loại vi phạm' />
+																</SelectTrigger>
+																<SelectContent>
+																	<SelectItem value='all'>
+																		Tất cả loại hành vi
+																	</SelectItem>
+																	<SelectItem value='phone'>
+																		Không mặc áo bảo hộ
+																	</SelectItem>
+																	<SelectItem value='smoking'>
+																		Không mang giày bảo hộ
+																	</SelectItem>
+																	<SelectItem value='fighting'>
+																		Không mặc áo bảo hộ
+																	</SelectItem>
+																	<SelectItem value='playing'>
+																		Không đeo găng tay
+																	</SelectItem>
+																</SelectContent>
+															</Select>
+														</div>
+
+														<div className='space-y-2'>
+															<h5 className='text-sm font-medium'>Bộ phận</h5>
+															<Select defaultValue='all'>
+																<SelectTrigger className='w-full'>
+																	<SelectValue placeholder='Tất cả bộ phận' />
+																</SelectTrigger>
+																<SelectContent>
+																	<SelectItem value='all'>Tất cả bộ phận</SelectItem>
+																	<SelectItem value='production'>Sản xuất</SelectItem>
+																	<SelectItem value='maintenance'>Bảo trì</SelectItem>
+																	<SelectItem value='technical'>Kỹ thuật</SelectItem>
+																	<SelectItem value='administration'>
+																		Hành chính
+																	</SelectItem>
+																</SelectContent>
+															</Select>
+														</div>
+
+														<div className='flex items-center justify-between pt-2'>
+															<Button variant='outline' size='sm'>
+																Đặt lại
+															</Button>
+															<Button size='sm'>Áp dụng</Button>
+														</div>
+													</div>
+												</PopoverContent>
+											</Popover>
 										</div>
 									</div>
 									<div className='rounded-md border'>
@@ -462,28 +556,6 @@ export default function SafetyMonitoringPage() {
 									</div>
 								</CardContent>
 							</Card>
-
-							{/* <div className='grid grid-cols-1 md:grid-cols-2 gap-6'>
-								<Card>
-									<CardHeader>
-										<CardTitle>Thống kê vi phạm</CardTitle>
-										<CardDescription>Phân tích vi phạm theo loại và thời gian</CardDescription>
-									</CardHeader>
-									<CardContent>
-										<ViolationStatsChart />
-									</CardContent>
-								</Card>
-
-								<Card>
-									<CardHeader>
-										<CardTitle>Vi phạm gần đây</CardTitle>
-										<CardDescription>Các vi phạm được phát hiện gần đây nhất</CardDescription>
-									</CardHeader>
-									<CardContent>
-										<RecentViolations />
-									</CardContent>
-								</Card>
-							</div> */}
 						</div>
 					</div>
 
@@ -495,7 +567,7 @@ export default function SafetyMonitoringPage() {
 						<div className='space-y-6'>
 							<div className='flex items-center justify-between'>
 								<div className='flex items-center gap-2'>
-									<Button onClick={handleExportExcel}>
+									<Button onClick={handleExportBehaviorViolations}>
 										<Download className='h-4 w-4 mr-2' />
 										Xuất báo cáo
 									</Button>
