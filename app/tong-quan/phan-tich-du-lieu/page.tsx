@@ -26,6 +26,7 @@ import {
 	CalendarX,
 	AlertCircle,
 	Loader2,
+	TriangleAlert,
 } from 'lucide-react';
 import { DashboardHeader } from '@/components/dashboard-header';
 import { SecurityRiskChart } from '@/components/security-risk-chart';
@@ -721,35 +722,17 @@ export default function DataAnalysisPage() {
 								</CardContent>
 							</Card>
 
-							<Card>
+							<Card className='opacity-40'>
 								<CardHeader>
 									<CardTitle>Khu vực có nguy cơ cao</CardTitle>
 									<CardDescription>Dựa trên số lượng sự cố an ninh</CardDescription>
 								</CardHeader>
-								<CardContent>
-									<div className='space-y-4'>
-										<div className='space-y-2'>
-											<div className='flex items-center justify-between'>
-												<span className='text-sm font-medium'>Khu vực kho hàng</span>
-												<span className='text-sm font-medium'>12 sự cố</span>
-											</div>
-											<Progress value={100} className='h-2' />
-										</div>
-										<div className='space-y-2'>
-											<div className='flex items-center justify-between'>
-												<span className='text-sm font-medium'>Cổng phụ</span>
-												<span className='text-sm font-medium'>8 sự cố</span>
-											</div>
-											<Progress value={67} className='h-2' />
-										</div>
-										<div className='space-y-2'>
-											<div className='flex items-center justify-between'>
-												<span className='text-sm font-medium'>Khu vực sản xuất C</span>
-												<span className='text-sm font-medium'>5 sự cố</span>
-											</div>
-											<Progress value={42} className='h-2' />
-										</div>
+								<CardContent className='flex flex-col items-center justify-center py-10'>
+									<div className='rounded-full bg-gray-100 p-4 mb-4'>
+										<TriangleAlert className='h-6 w-6 text-gray-400' />
 									</div>
+									<h3 className='text-center font-medium'>Chưa có hoạt động</h3>
+									<p className='text-center text-sm text-gray-500'>Truy cập lại sau khi có đủ liệu</p>
 								</CardContent>
 							</Card>
 						</div>

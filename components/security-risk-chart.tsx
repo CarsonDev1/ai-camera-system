@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import IntrusionAlertService, { MonthlyIntrusionStatsData } from '@/services/intrusion-alert-service';
 import { CardDescription, CardTitle } from '@/components/ui/card';
@@ -23,37 +23,20 @@ const transformData = (apiData: MonthlyIntrusionStatsData) => {
 
 	return apiData.data.map((item) => ({
 		name: formatMonth(item.month),
-		'Tổng cảnh báo': item.total_intrusion_alerts,
-		'Cảnh báo đã xử lý': item.processed_intrusion_alerts,
-		'Cảnh báo chưa xử lý': item.total_intrusion_alerts - item.processed_intrusion_alerts,
+		'Truy cập trái phép': item.total_intrusion_alerts,
 	}));
 };
 
 export function SecurityRiskChart() {
-	const [data, setData] = useState<any[]>([]);
-	const [loading, setLoading] = useState<boolean>(true);
-	const [error, setError] = useState<string | null>(null);
+	const { data, isLoading, error } = useQuery({
+		queryKey: ['monthlyIntrusionStats'],
+		queryFn: async () => {
+			const response = await IntrusionAlertService.getMonthlyIntrusionStats();
+			return transformData(response);
+		},
+	});
 
-	useEffect(() => {
-		const fetchData = async () => {
-			try {
-				setLoading(true);
-				const response = await IntrusionAlertService.getMonthlyIntrusionStats();
-				const transformedData = transformData(response);
-				setData(transformedData);
-				setError(null);
-			} catch (err) {
-				console.error('Error fetching intrusion data:', err);
-				setError('Không thể tải dữ liệu. Vui lòng thử lại sau.');
-			} finally {
-				setLoading(false);
-			}
-		};
-
-		fetchData();
-	}, []);
-
-	if (loading) {
+	if (isLoading) {
 		return (
 			<div className='h-[300px] w-full flex items-center justify-center'>
 				<div className='animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500'></div>
@@ -64,12 +47,12 @@ export function SecurityRiskChart() {
 	if (error) {
 		return (
 			<div className='h-[300px] w-full flex items-center justify-center'>
-				<div className='text-red-500'>{error}</div>
+				<div className='text-red-500'>Không thể tải dữ liệu. Vui lòng thử lại sau.</div>
 			</div>
 		);
 	}
 
-	if (data.length === 0) {
+	if (!data || data.length === 0) {
 		return (
 			<div className='h-[300px] w-full flex items-center justify-center'>
 				<div className='text-gray-500'>Không có dữ liệu cảnh báo xâm nhập</div>
@@ -107,13 +90,25 @@ export function SecurityRiskChart() {
 					/>
 					<Line
 						type='monotone'
-						dataKey='Tổng cảnh báo'
-						stroke='#3b82f6'
+						dataKey='Truy cập trái phép'
+						stroke='#ef4444'
 						activeDot={{ r: 8 }}
 						strokeWidth={2}
 					/>
-					<Line type='monotone' dataKey='Cảnh báo đã xử lý' stroke='#22c55e' strokeWidth={2} />
-					<Line type='monotone' dataKey='Cảnh báo chưa xử lý' stroke='#ef4444' strokeWidth={2} />
+					<Line
+						type='monotone'
+						dataKey='Ra vào ngoài giờ'
+						stroke='#e7df39'
+						activeDot={{ r: 8 }}
+						strokeWidth={2}
+					/>
+					<Line
+						type='monotone'
+						dataKey='Đi vào khu vực cấm'
+						stroke='#1c3efd'
+						activeDot={{ r: 8 }}
+						strokeWidth={2}
+					/>
 				</LineChart>
 			</ResponsiveContainer>
 		</div>

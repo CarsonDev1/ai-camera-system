@@ -18,7 +18,18 @@ import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Plus, MoreHorizontal, Search, Filter, Clock, AlertTriangle, Camera, MapPin, Eye } from 'lucide-react';
+import {
+	Plus,
+	MoreHorizontal,
+	Search,
+	Filter,
+	Clock,
+	AlertTriangle,
+	Camera,
+	MapPin,
+	Eye,
+	TriangleAlert,
+} from 'lucide-react';
 import IntrusionLogService, { IntrusionLogEntry } from '@/services/intrusion-log-service';
 import { toast } from '@/components/ui/use-toast';
 import {
@@ -396,116 +407,57 @@ export default function SecurityMonitoringPage() {
 						</TabsContent>
 
 						{/* Tab Khu vực giám sát */}
-						<TabsContent value='areas'>
+						<TabsContent value='areas' className='opacity-35 bg-slate-300'>
 							<Card>
 								<CardHeader className='flex flex-col md:flex-row gap-4 md:items-center md:justify-between'>
 									<div>
 										<CardTitle>Danh sách khu vực giám sát</CardTitle>
 										<CardDescription>Các khu vực được giám sát bởi hệ thống camera</CardDescription>
 									</div>
-									<Button className='w-full md:w-auto'>
+									<Button className='w-full md:w-auto' disabled>
 										<Plus className='h-4 w-4 mr-2' />
 										Thêm khu vực
 									</Button>
 								</CardHeader>
-								<CardContent>
-									<div className='flex items-center justify-between mb-4'>
-										<div className='flex items-center gap-2 w-full max-w-sm'>
-											<div className='relative w-full'>
-												<Search className='absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground' />
-												<Input
-													type='search'
-													placeholder='Tìm kiếm khu vực...'
-													className='pl-8 w-full'
-												/>
-											</div>
-										</div>
-										<Button variant='outline' size='icon'>
-											<Filter className='h-4 w-4' />
-										</Button>
+								<CardContent className='flex flex-col items-center justify-center py-10'>
+									<div className='rounded-full bg-gray-100 p-4 mb-4'>
+										<TriangleAlert className='h-6 w-6 text-gray-400' />
 									</div>
-									<div className='rounded-md border overflow-auto'>
-										<Table>
-											<TableHeader>
-												<TableRow>
-													<TableHead>Tên khu vực</TableHead>
-													<TableHead>Camera</TableHead>
-													<TableHead>Mô tả</TableHead>
-													<TableHead className='w-[80px]'></TableHead>
-												</TableRow>
-											</TableHeader>
-											<TableBody>
-												{monitoringAreas.map((area) => (
-													<TableRow key={area.id}>
-														<TableCell className='font-medium'>{area.name}</TableCell>
-														<TableCell>
-															<div className='flex items-center gap-2'>
-																<Camera className='h-4 w-4 text-blue-500' />
-																<span>{area.cameras}</span>
-															</div>
-														</TableCell>
-														<TableCell>{area.description}</TableCell>
-														<TableCell>
-															<DropdownMenu>
-																<DropdownMenuTrigger asChild>
-																	<Button
-																		variant='ghost'
-																		className='h-8 w-8 p-0'
-																		aria-label='Mở menu'
-																	>
-																		<MoreHorizontal className='h-4 w-4' />
-																	</Button>
-																</DropdownMenuTrigger>
-																<DropdownMenuContent align='end'>
-																	<DropdownMenuLabel>Hành động</DropdownMenuLabel>
-																	<DropdownMenuSeparator />
-																	<DropdownMenuItem>Xem chi tiết</DropdownMenuItem>
-																	<DropdownMenuItem>Chỉnh sửa</DropdownMenuItem>
-																	<DropdownMenuItem>Xem camera</DropdownMenuItem>
-																	<DropdownMenuItem className='text-red-600'>
-																		Xóa
-																	</DropdownMenuItem>
-																</DropdownMenuContent>
-															</DropdownMenu>
-														</TableCell>
-													</TableRow>
-												))}
-											</TableBody>
-										</Table>
-									</div>
+									<h3 className='text-center font-medium'>Chưa có hoạt động</h3>
+									<p className='text-center text-sm text-gray-500'>Truy cập lại sau khi có đủ liệu</p>
 								</CardContent>
 							</Card>
 						</TabsContent>
-					</div>
-					{filteredLogs && filteredLogs.length > rowsPerPage && (
-						<div className='flex justify-between items-center px-4 py-3'>
-							<span className='text-sm text-muted-foreground'>
-								Trang {currentPage} / {Math.ceil(filteredLogs.length / rowsPerPage)}
-							</span>
-							<div className='space-x-2'>
-								<Button
-									variant='outline'
-									size='sm'
-									disabled={currentPage === 1}
-									onClick={() => setCurrentPage((p) => Math.max(p - 1, 1))}
-								>
-									Trước
-								</Button>
-								<Button
-									variant='outline'
-									size='sm'
-									disabled={currentPage === Math.ceil(filteredLogs.length / rowsPerPage)}
-									onClick={() =>
-										setCurrentPage((p) =>
-											Math.min(p + 1, Math.ceil(filteredLogs.length / rowsPerPage))
-										)
-									}
-								>
-									Sau
-								</Button>
+						{/* {filteredLogs && filteredLogs.length > rowsPerPage && (
+							<div className='flex justify-between items-center px-4 py-3'>
+								<span className='text-sm text-muted-foreground'>
+									Trang {currentPage} / {Math.ceil(filteredLogs.length / rowsPerPage)}
+								</span>
+								<div className='space-x-2'>
+									<Button
+										variant='outline'
+										size='sm'
+										disabled={currentPage === 1}
+										onClick={() => setCurrentPage((p) => Math.max(p - 1, 1))}
+									>
+										Trước
+									</Button>
+									<Button
+										variant='outline'
+										size='sm'
+										disabled={currentPage === Math.ceil(filteredLogs.length / rowsPerPage)}
+										onClick={() =>
+											setCurrentPage((p) =>
+												Math.min(p + 1, Math.ceil(filteredLogs.length / rowsPerPage))
+											)
+										}
+									>
+										Sau
+									</Button>
+								</div>
 							</div>
-						</div>
-					)}
+						)} */}
+					</div>
 				</Tabs>
 			</div>
 

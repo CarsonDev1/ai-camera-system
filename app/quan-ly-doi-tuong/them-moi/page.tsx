@@ -49,21 +49,15 @@ import FileUploadService from '@/services/upload-image-service';
 
 // Define the validation schema
 const formSchema = z.object({
-	objectType: z.string().min(1, { message: 'Vui lòng chọn loại đối tượng' }),
+	objectType: z.string().default('Nhân viên'),
 	department: z.string().min(1, { message: 'Vui lòng chọn phòng ban' }),
 	fullName: z.string().min(2, { message: 'Họ tên phải có ít nhất 2 ký tự' }).max(100),
 	gender: z.string().min(1, { message: 'Vui lòng chọn giới tính' }),
-	email: z.string().email({ message: 'Email không hợp lệ' }),
+	email: z.string().optional(),
 	phone: z.string().min(10, { message: 'Số điện thoại không hợp lệ' }),
-	dob: z.date({
-		required_error: 'Vui lòng chọn ngày sinh',
-		invalid_type_error: 'Ngày sinh không hợp lệ',
-	}),
-	joiningDate: z.date({
-		required_error: 'Vui lòng chọn ngày vào công ty',
-		invalid_type_error: 'Ngày vào công ty không hợp lệ',
-	}),
-	address: z.string().min(5, { message: 'Địa chỉ phải có ít nhất 5 ký tự' }),
+	dob: z.date().optional(),
+	joiningDate: z.date().optional(),
+	address: z.string().optional(),
 	notes: z.string().optional(),
 	custom_face_images1: z.string().optional(),
 	custom_face_images2: z.string().optional(),
@@ -283,8 +277,8 @@ export default function AddObjectPage() {
 			department: formData.department,
 			employment_type: employmentType,
 			cell_number: formData.phone,
-			personal_email: formData.email,
-			current_address: formData.address,
+			personal_email: formData.email || '',
+			current_address: formData.address || '',
 			// Thêm URL của các file đã upload - các URL này đã được lưu vào form thông qua handleFileChange
 			custom_face_images1: formData.custom_face_images1 || '',
 			custom_face_images2: formData.custom_face_images2 || '',
@@ -440,7 +434,7 @@ export default function AddObjectPage() {
 															<FormControl>
 																<Input
 																	type='email'
-																	placeholder='Nhập email'
+																	placeholder='Nhập email (không bắt buộc)'
 																	{...field}
 																/>
 															</FormControl>
