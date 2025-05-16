@@ -60,11 +60,7 @@ export function DashboardHeader({ title, description, onRefresh, isLoading = fal
 						{isRefreshing ? 'Đang làm mới...' : 'Làm mới'}
 					</Button>
 					<div className='flex items-center'>
-						<img
-							src='https://hebbkx1anhila5yf.public.blob.vercel-storage.com/image-HlXrNaazymzQUuOnwaT1ETf0Ivuhq1.png'
-							alt='Intersnack Logo'
-							className='h-8'
-						/>
+						<img src='/logo.png' alt='Logo' className='h-8' />
 					</div>
 				</div>
 			</div>
