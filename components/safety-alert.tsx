@@ -34,6 +34,7 @@ import { Calendar as CalendarComponent } from '@/components/ui/calendar';
 import { vi } from 'date-fns/locale';
 import AlarmDashboardService from '@/services/alarm-dashboard-service';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import AlarmReportService from '@/services/alarm-report-service';
 
 // Stats Cards Component - Shows safety alerts statistics
 export const SafetyAlertsStats = () => {
@@ -169,10 +170,32 @@ export const SafetyAlertsTable = ({
 	const [currentPage, setCurrentPage] = useState(1);
 	const [pageSize, setPageSize] = useState(5);
 	const [totalItems, setTotalItems] = useState(0);
+	const [selectedAlert, setSelectedAlert] = useState<any>();
+	const [isDrawerOpen, setIsDrawerOpen] = useState(false);
+	const [isConfirmOpen, setIsConfirmOpen] = useState(false);
+	const [alertToReject, setAlertToReject] = useState<SafetyAlert | null>(null);
+	const [isStatusUpdating, setIsStatusUpdating] = useState(false);
 
-	// Add date filter state
+	// Implement status change handler function
+	const handleStatusChange = async (alertName: string, newStatus: 'Chưa xử lý' | 'Đang xử lý' | 'Đã xử lý') => {
+		try {
+			setIsStatusUpdating(true);
 
-	const handleStatusChange = (logIndex: number, newStatus: string) => {};
+			// Call the API service to update the alarm status
+			await AlarmReportService.updateAlarmStatus(alertName, newStatus);
+
+			// After successful update, refetch the data to refresh the UI
+			refetch();
+
+			// Optional: show a success notification or feedback
+			console.log(`Status updated successfully for ${alertName}`);
+		} catch (error) {
+			console.error('Error updating status:', error);
+			// Optional: show an error notification or feedback
+		} finally {
+			setIsStatusUpdating(false);
+		}
+	};
 
 	// Use the modified query with pagination
 	const {
@@ -351,16 +374,10 @@ export const SafetyAlertsTable = ({
 		return <div className='flex gap-1'>{pages}</div>;
 	};
 
-	const [selectedAlert, setSelectedAlert] = useState<any>();
-
-	const [isDrawerOpen, setIsDrawerOpen] = useState(false);
-
 	const handleDataDetail = (alert: any) => () => {
 		setSelectedAlert(alert);
 		setIsDrawerOpen(true);
 	};
-	const [isConfirmOpen, setIsConfirmOpen] = useState(false);
-	const [alertToReject, setAlertToReject] = useState<SafetyAlert | null>(null);
 
 	const handleRejectAlert = (alert: SafetyAlert) => () => {
 		setAlertToReject(alert);
@@ -412,77 +429,65 @@ export const SafetyAlertsTable = ({
 						filteredAlerts.map((alert: SafetyAlert, index) => {
 							const severity = getSeverityFromViolationType(alert.loai_vi_pham);
 							return (
-								<>
-									<TableRow key={alert.name || `alert-${index}`}>
-										<TableCell>
-											<div className='flex items-center gap-2'>
-												<div
-													className={`h-2 w-2 rounded-full ${
-														severity === 'high'
-															? 'bg-red-500'
-															: severity === 'medium'
-															? 'bg-yellow-500'
-															: 'bg-blue-500'
-													}`}
-												/>
-												<span>{alert.loai_vi_pham}</span>
-											</div>
-										</TableCell>
-										<TableCell>{alert.khu_vuc}</TableCell>
-										<TableCell>{formatTimestamp(alert.timestamp)}</TableCell>
-										<TableCell>{alert.department}</TableCell>
-										<TableCell>{alert.employee_name || 'Không xác định'}</TableCell>
-										<TableCell>
-											<Select value={alert.trang_thai}>
-												<SelectTrigger className='w-[120px]'>
-													<SelectValue />
-												</SelectTrigger>
-												<SelectContent>
-													<SelectItem value='Chưa xử lý'>Chưa xử lý</SelectItem>
-													<SelectItem value='Đã xử lý'>Đã xử lý</SelectItem>
-												</SelectContent>
-											</Select>
-										</TableCell>
-										<TableCell>
-											<DropdownMenu>
-												<DropdownMenuTrigger asChild>
-													<Button
-														variant='ghost'
-														className='h-8 w-8 p-0'
-														aria-label='Mở menu'
-													>
-														<MoreHorizontal className='h-4 w-4' />
-													</Button>
-												</DropdownMenuTrigger>
-												<DropdownMenuContent align='end'>
-													<DropdownMenuLabel>Hành động</DropdownMenuLabel>
-													<DropdownMenuSeparator />
-													<DropdownMenuItem onClick={handleDataDetail(alert)}>
-														Xem chi tiết
-													</DropdownMenuItem>
-													<DropdownMenuItem onClick={handleRejectAlert(alert)}>
-														Bác bỏ vi phạm
-													</DropdownMenuItem>
-												</DropdownMenuContent>
-											</DropdownMenu>
-										</TableCell>
-									</TableRow>
-									<Drawer
-										onClose={() => setIsDrawerOpen(false)}
-										open={isDrawerOpen}
-										data={selectedAlert}
-									/>
-									<ConfirmDialog
-										open={isConfirmOpen}
-										onConfirm={handleConfirmReject}
-										onCancel={() => {
-											setIsConfirmOpen(false);
-											setAlertToReject(null);
-										}}
-										title='Xác nhận bác bỏ'
-										message={`Bạn có chắc chắn muốn bác bỏ vi phạm: "${alertToReject?.loai_vi_pham}"?`}
-									/>
-								</>
+								<TableRow key={alert.name || `alert-${index}`}>
+									<TableCell>
+										<div className='flex items-center gap-2'>
+											<div
+												className={`h-2 w-2 rounded-full ${
+													severity === 'high'
+														? 'bg-red-500'
+														: severity === 'medium'
+														? 'bg-yellow-500'
+														: 'bg-blue-500'
+												}`}
+											/>
+											<span>{alert.loai_vi_pham}</span>
+										</div>
+									</TableCell>
+									<TableCell>{alert.khu_vuc}</TableCell>
+									<TableCell>{formatTimestamp(alert.timestamp)}</TableCell>
+									<TableCell>{alert.department}</TableCell>
+									<TableCell>{alert.employee_name || 'Không xác định'}</TableCell>
+									<TableCell>
+										<Select
+											value={alert.trang_thai}
+											onValueChange={(value) =>
+												handleStatusChange(
+													alert.name,
+													value as 'Chưa xử lý' | 'Đang xử lý' | 'Đã xử lý'
+												)
+											}
+											disabled={isStatusUpdating}
+										>
+											<SelectTrigger className='w-[120px]'>
+												<SelectValue />
+											</SelectTrigger>
+											<SelectContent>
+												<SelectItem value='Chưa xử lý'>Chưa xử lý</SelectItem>
+												<SelectItem value='Đã xử lý'>Đã xử lý</SelectItem>
+											</SelectContent>
+										</Select>
+									</TableCell>
+									<TableCell>
+										<DropdownMenu>
+											<DropdownMenuTrigger asChild>
+												<Button variant='ghost' className='h-8 w-8 p-0' aria-label='Mở menu'>
+													<MoreHorizontal className='h-4 w-4' />
+												</Button>
+											</DropdownMenuTrigger>
+											<DropdownMenuContent align='end'>
+												<DropdownMenuLabel>Hành động</DropdownMenuLabel>
+												<DropdownMenuSeparator />
+												<DropdownMenuItem onClick={handleDataDetail(alert)}>
+													Xem chi tiết
+												</DropdownMenuItem>
+												<DropdownMenuItem onClick={handleRejectAlert(alert)}>
+													Bác bỏ vi phạm
+												</DropdownMenuItem>
+											</DropdownMenuContent>
+										</DropdownMenu>
+									</TableCell>
+								</TableRow>
 							);
 						})
 					) : (
@@ -536,6 +541,20 @@ export const SafetyAlertsTable = ({
 					</div>
 				</div>
 			)}
+
+			{/* Drawer and Dialog components */}
+			<Drawer onClose={() => setIsDrawerOpen(false)} open={isDrawerOpen} data={selectedAlert} />
+
+			<ConfirmDialog
+				open={isConfirmOpen}
+				onConfirm={handleConfirmReject}
+				onCancel={() => {
+					setIsConfirmOpen(false);
+					setAlertToReject(null);
+				}}
+				title='Xác nhận bác bỏ'
+				message={`Bạn có chắc chắn muốn bác bỏ vi phạm: "${alertToReject?.loai_vi_pham}"?`}
+			/>
 		</div>
 	);
 };
